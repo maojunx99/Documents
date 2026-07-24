@@ -1,12 +1,8 @@
----
-title: "MTP 异步流水设计"
----
-
 ## 1. 背景与目标
 
 MTP（Multi-Token Prediction）投机解码的一轮 steady-state decode 包含草稿模型生成、主模型批量验证、拒绝采样，以及下一轮草稿输入准备。优化前这些阶段在 Host 上基本串行：主模型验证完成后，worker 同步设备，把接受结果拷回 CPU，更新缓存和输入，再由 scheduler 发起下一轮 draft forward。设备在整段 Host 工作期间无任务可执行，形成空泡。
 
-本文描述 xLLM 的 MTP 异步流水，包括状态语义、stream/event 依赖、下一轮首个 draft 的提前下发、融合算子、批次切换降级和正确性保障。功能与启动参数请参考 [MTP 投机推理](/zh/features/mtp/)。
+本文描述 xLLM 的 MTP 异步流水，包括状态语义、stream/event 依赖、下一轮首个 draft 的提前下发、融合算子、批次切换降级和正确性保障。
 
 设计目标：
 
@@ -16,18 +12,14 @@ MTP（Multi-Token Prediction）投机解码的一轮 steady-state decode 包含�
 - 不改变拒绝采样、KV cache 和随机采样语义，不能以吞吐换接受率。
 - 批次切换、首次 decode 和不支持的配置自动回到保守路径。
 
-非目标：本设计不改变 MTP 概率算法；不要求所有模型、并行模式和后端立即启用提前下发；也不删除 scheduler 获取最终 token 所必需的 D2H，而是将其移出设备关键路径。
-
 ## 2. 优化前后的流水
 
 ### 2.1 优化前：同步边界制造空泡
-![alt text](schedule_overlap_base.png)
-
+<img width="1726" height="722" alt="schedule_overlap_base" src="https://github.com/user-attachments/assets/0a43b986-f892-4bd8-bbff-a016d3cd98df" />
 问题不只是一次 memcpy。Host 必须等设备结果才能构造输入，一个同步点会把后续 CPU 操作、H2D 和 kernel launch 全部串在设备计算之后，空泡长度等于整段 Host 临界路径。
 
 ### 2.2 优化后：当前轮尾部提前下发下一轮
-![alt text](mtp_async_optimized.png)
-
+<img width="2786" height="927" alt="mtp_async_optimized" src="https://github.com/user-attachments/assets/bb85b6dc-fb6f-4d01-ad27-e487e7325c20" />
 拒绝采样产出的 tensor 不先交给 CPU，而是在 compute stream 上直接准备下一轮输入并 launch draft。scheduler 仍会获得 CPU token，但其工作与设备任务重叠。
 
 ## 3. 优化方向一：提前下发下一轮 draft-0
@@ -95,27 +87,7 @@ runner/graph 在 launch 前需要 Host 元数据确定 shape，但此时接受�
 
 模板**只决定执行形状，不能成为数值真相**——所有影响语义的 device tensor 都必须被接受状态替换。这样 prepare 与 target 验证可以并行，模板在 target 跑完时已就绪，compute stream 上立即用真实接受状态 patch 内容即可 launch。
 
-## 6. 优化方向四：KV 补齐 forward
-
-### 问题
-
-草稿模型一次 forward 为“输入 token”写 KV 并预测下一个。若 draft 连续提出 `d1、d2、d3`，则 `KV(d3)` 尚未生成（`d3` 只是预测结果，没作为输入执行过）。当 target 全接受并以 bonus token 进入下一轮 draft-0 时，注意力前缀需要 `KV(d3)`。
-
-### 方案
-
-把下一轮起始拆成两个 forward：
-
-| forward | 输入 token | position | 是否采样 | 目标 |
-| --- | --- | --- | --- | --- |
-| KV 补齐 forward | 本轮倒数第二个接受 token | `next_base_position - 1` | 否 | 补出缺失的一格 KV cache |
-| 下一轮 draft-0 forward | 本轮最后一个接受 token | `next_base_position` | 是 | 产生下一轮第一个 proposal |
-
-- **全接受**：KV 补齐 forward 以 `d3` 为输入补写缺失 KV，下一轮 draft-0 以 bonus token 为输入。
-- **中途拒绝**：替代 token 之前的 draft KV 已存在，不需补齐；但为保持固定 shape，KV 补齐 forward 仍执行，写入位置重定向到不可见的未来 scratch slot，结果被丢弃。
-
-两个 forward 同在 compute stream 上，FIFO 顺序保证 draft-0 能看到 KV 补齐刚写入的 KV。
-
-## 7. 优化方向五：融合准备算子
+## 6. 优化方向四：融合准备算子
 
 ### 问题
 
@@ -137,7 +109,7 @@ runner/graph 在 launch 前需要 Host 元数据确定 shape，但此时接受�
 
 不满足融合条件时（device/dtype/维度/对齐/`block_size`/multi block tables/后端未编译）自动降级到 Torch fallback（`mtp_async_state`），调用方只判断 wrapper 是否返回结果，不复制资格条件，避免 worker 与 wrapper 漂移。`mtp_async_state` 同时是融合核的测试参考实现。
 
-## 8. 优化方向六：同步边界最小化与安全降级
+## 7. 优化方向五：同步边界最小化与安全降级
 
 ### 同 stream 用 FIFO，跨 stream 才用 event
 
@@ -165,7 +137,7 @@ runner/graph 在 launch 前需要 Host 元数据确定 shape，但此时接受�
 
 首次 handoff 先通过 Host cache 建立 scheduler 与设备一致的 position/KV base，再把 batch 标记为 primed，之后才完全由设备推导。identity 不匹配时：丢弃旧 `PendingDraftContext`、flush `PendingTargetContext` 到 Host cache、重建 primed identity、用保守路径完成本轮。批次变化是慢路径，同步不落入稳定 decode 关键路径。
 
-## 9. 启用条件与小结
+## 8. 启用条件与小结
 
 完整提前下发要求：
 
@@ -180,7 +152,7 @@ AND 未启用 ATB speculative kernel
 
 **小结**：本次优化以“把下一轮 draft-0 提前到当前轮 validate 尾部 launch”为 headline，配套五个方向协同消除设备空泡——接受状态驻留设备、固定形状模板提前准备、KV 补齐 forward 补全因果前缀、融合算子压缩准备开销、同步边界最小化与安全降级。核心原则是：同 stream FIFO 替代 event、D2H 移出关键路径、形状确定性与数值真相分离、batch identity 守护预提交结果正确性。
 
-## 10. 下一步优化方向：草稿模型全图 capture
+## 9. 下一步优化方向：草稿模型全图 capture
 
 ### 仍存在的空泡
 
@@ -205,13 +177,14 @@ AND 未启用 ATB speculative kernel
 4. **图内 broadcast**：多 rank 一致性用图内 all_gather 替代 host 侧 `pg->broadcast`。
 5. **replay**：一次 graph replay 跑完整个 draft 循环，设备无空泡。
 
-### 复杂度与风险
+## 10. 设计insights
+1. cpu侧同步拷贝尽量消除，无法消除的变同步为异步，做到计算掩盖
+2. 异步调度优先，并且数据准备操作从host侧下沉到device侧（device上同一个stream天然保序）
+相关资料参考： https://docs.vllm.com.cn/en/latest/design/model_runner_v2/
 
-- **graph capture 的 shape 固定**：draft 循环的 batch size、`num_speculative_tokens`、`force_two_rows` 布局在 steady-state 下固定，满足 capture 条件。batch transition 时仍需 fallback 到 eager。
-
-- **TP/DP 一致性**：图内 all_gather 要保证和当前 `pg->broadcast` 语义一致（root rank 的 token 广播到所有 rank），否则各 rank 跑出不同 draft token 导致接受率下降。
-
-- **probs cache 生命周期**：`process_draft_sample_output` 压缩后的 probs 要在 validate 阶段被读，图内写静态 buffer 后由 validate 路径消费，需保证 buffer 不被提前覆盖。
+## 11. 优化通用性与适配
+1. 异步调度逻辑本身与模型无关，模型适配点集中在参数准备(todo: 对应代码段)
+2. todo: glm5/ds v4适配过程
 
   
 
