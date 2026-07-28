@@ -12,6 +12,8 @@ MTP（Multi-Token Prediction）投机解码的一轮 steady-state decode 包含�
 - 不改变拒绝采样、KV cache 和随机采样语义，不能以吞吐换接受率。
 - 批次切换、首次 decode 和不支持的配置自动回到保守路径。
 
+关联PR: https://github.com/xLLM-AI/xllm/pull/1966
+
 ## 2. 优化前后的流水
 
 ### 2.1 优化前：同步边界制造空泡
@@ -143,7 +145,7 @@ runner/graph 在 launch 前需要 Host 元数据确定 shape，但此时接受�
 
 ```text
 enable_schedule_overlap
-AND target 使用 chunked-prefill speculative verify 路径（Qwen3.5 / MiMo）
+AND target 使用 chunked-prefill speculative verify 路径（Qwen3.5）
 AND dp_size <= 1
 AND 未启用 ATB speculative kernel
 ```
@@ -184,6 +186,10 @@ AND 未启用 ATB speculative kernel
 
 ## 11. 优化通用性与适配
 1. 异步调度逻辑本身与模型无关，模型适配点集中在参数准备(todo: 对应代码段)
+- mtp_worker_impl.cpp supports_combined_first_draft_execution() 该函数控制哪些模型可以走mtp异步调度优化
+- mtp_worker_impl.cpp prepare_next_first_draft_template() 该函数构造草稿模型的第一次的输入模版（fake input）
+- mtp_async_input_builder.cpp prepare_next_draft_from_accepted_state() 该函数使用真实accepted_tokens更新草稿模型第一次的输入模版
+   
 2. todo: glm5/ds v4适配过程
 
   
