@@ -1,5 +1,5 @@
 {
-  "article_version": "2026-10-18 revision 8: confirmed data-generation, block-width and community-weight wording",
+  "article_version": "2026-10-18 revision 9: GSM8K three-model conditional acceptance comparison",
   "models": {
     "official": {
       "path": "/export/home/ext.wanghao231/dflash2_work/models/Qwen3.8-27B-DFlash2",
@@ -234,7 +234,16 @@
           "global_draft_weighted_tau": 4.9661595777708785,
           "generation_tokens_per_request_second": 247.49466514602008,
           "truncations": 1,
-          "mean_completion_tokens": 499.125
+          "mean_completion_tokens": 499.125,
+          "conditional_accept": [
+            0.8643278484942565,
+            0.8505747126436781,
+            0.862331081081081,
+            0.8437806072477962,
+            0.8711549622751016,
+            0.8481012658227848,
+            0.8515318146111548
+          ]
         },
         "math500": {
           "n": 32,
@@ -494,7 +503,16 @@
           "global_draft_weighted_tau": 4.092678675188844,
           "generation_tokens_per_request_second": 190.1952320626606,
           "truncations": 0,
-          "mean_completion_tokens": 439.71875
+          "mean_completion_tokens": 439.71875,
+          "conditional_accept": [
+            0.7585705984892505,
+            0.7813098429720413,
+            0.821078431372549,
+            0.817910447761194,
+            0.8357664233576643,
+            0.8384279475982532,
+            0.8791666666666667
+          ]
         },
         "math500": {
           "n": 32,
@@ -15779,5 +15797,24 @@
     "max_tokens": 8192,
     "source_script": "/export/home/ext.xumaojun1/dflash2_npu/scripts/lane_worker_pb.sh",
     "verification": "Read-only inspection of the source script and sampling_params in transferred output metadata."
+  },
+  "conditional_acceptance_plot": {
+    "benchmark": "gsm8k",
+    "requests_per_model_per_temperature": 32,
+    "models": [
+      "official",
+      "ours",
+      "dspark_historical"
+    ],
+    "positions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "aggregation": "For position 1: accepted_1 / drafts. For position i > 1: accepted_i / accepted_(i-1), using summed per-request counts."
   }
 }

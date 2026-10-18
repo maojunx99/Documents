@@ -462,6 +462,56 @@
       }
     }
   },
+  "community_gsm8k_requests_recomputed": 64,
+  "community_gsm8k_results": {
+    "t0": {
+      "n": 32,
+      "conditional_accept": [
+        0.8643278484942565,
+        0.8505747126436781,
+        0.862331081081081,
+        0.8437806072477962,
+        0.8711549622751016,
+        0.8481012658227848,
+        0.8515318146111548
+      ],
+      "source": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_dspark_c1_t0/per_request_metrics.jsonl",
+      "source_sha256": "2c98c93d468795b23758abbe3112167ee7b0a20b7ab4e5e95fdba462f5742f96"
+    },
+    "t1": {
+      "n": 32,
+      "conditional_accept": [
+        0.7585705984892505,
+        0.7813098429720413,
+        0.821078431372549,
+        0.817910447761194,
+        0.8357664233576643,
+        0.8384279475982532,
+        0.8791666666666667
+      ],
+      "source": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_dspark_c1_t1/per_request_metrics.jsonl",
+      "source_sha256": "af10729869f87787019b320260aab152e8c19b8dc49c9bd532c926d311350a24"
+    }
+  },
+  "conditional_acceptance_plot": {
+    "benchmark": "gsm8k",
+    "requests_per_model_per_temperature": 32,
+    "models": [
+      "official",
+      "ours",
+      "dspark_historical"
+    ],
+    "positions": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "aggregation": "For position 1: accepted_1 / drafts. For position i > 1: accepted_i / accepted_(i-1), using summed per-request counts."
+  },
   "figure_roles": {
     "1": "Official candidate-path selector mechanism diagram; no performance data.",
     "2": "Official short-convolution mechanism diagram; no performance data.",
@@ -469,7 +519,7 @@
     "4": "Five baseline training validation endpoints, not final-model inference metrics.",
     "5": "Main final-model evaluation: request-mean acceptance lengths. DSpark uses the RadixArk community checkpoint.",
     "6": "Same main final-model evaluation: total generated tokens / total request seconds.",
-    "7": "Same main final-model evaluation: position counts divided by reached-position counts.",
+    "7": "GSM8K only, 32 requests per model and temperature: official DFlash2, our DFlash2 and community DSpark; counts divided by reached-position counts.",
     "8": "Supplementary dataset proportions and lengths; not the baseline dataset.",
     "9": "Supplementary-data training curve producing the same final checkpoint used in figures 5–7."
   },
@@ -491,6 +541,7 @@
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/expansion_evaluation_complete/evaluation/t1_historical/current_start/s0/per_request.jsonl": "c4c7ac4814ffc820c30dfb4ae6bd6e909a5e59b80ba64f9d1ac26b6b39c24e44",
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/expansion_evaluation_complete/evaluation/t1_historical/current_start/s1/protocol.json": "5ad2a2310eb8bc9cc9313c759cc943de4fd8383a26f63bb22b14098e97f8789b",
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/expansion_evaluation_complete/evaluation/t1_historical/current_start/s1/per_request.jsonl": "1beff6da4f5f484fe774a1c4dfd801c664a3769c8ce02585ae420e250465e80f",
+    "C:/Users/wanghao/Desktop/jd_remote/diagnostics/qwen38_27b_blog_20261018/evidence/collected.json": "2fce4dc9f5405182bde96cbcce531dd3c00ea154b598ffdbbcc8dae4b3b23849",
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/targeted_t1_single_seed_results/PROTOCOL.json": "1b862f45208cef9c60a3402b35032c1200d915d9b5ac8ed89b085e6e1d2398ec",
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/targeted_t1_single_seed_results/evaluation/t1_historical/overlap/s0/protocol.json": "099d9ffceffbb722b24de298b546cc54a12fb7570665a5e75612f2dc6b0d0242",
     "C:/Users/wanghao/Desktop/jd_remote/diagnostics/dflash2_analysis_20261008/targeted_t1_single_seed_results/evaluation/t1_historical/overlap/s1/protocol.json": "4717fa426206d972b85c7b5937a63f13fe6f44b9fc519ced62a24fccaea0ba44",

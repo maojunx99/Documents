@@ -97,12 +97,12 @@ finish(fig,'04_five_benchmark_tau','DSpark 列使用社区公开权重；三组�
 # 5. Actual conditional acceptance, aggregated by reached positions, not TF accuracy.
 fig,axes=plt.subplots(1,2,figsize=(11.5,4.4),layout='constrained')
 for ax,mode in zip(axes,['t0','t1']):
-    for model,label,color,marker in [('official','官方 DFlash2',BLUE,'o'),('ours','本文训练模型',ORANGE,'s')]:
-        y=D['evaluation'][mode][model]['overall']['conditional_accept']
+    for model,label,color,marker in [('official','官方 DFlash2',BLUE,'o'),('ours','本文 DFlash2',ORANGE,'s'),('dspark_historical','社区 DSpark',GRAY,'^')]:
+        y=D['evaluation'][mode][model]['gsm8k']['conditional_accept']
         ax.plot(np.arange(1,8),np.array(y)*100,'-'+marker,lw=2,color=color,label=label)
     ax.set_xticks(np.arange(1,8));ax.set_xlabel('草稿位置（1–7）');ax.set_ylabel('条件接受率（%）');ax.set_ylim(72,90)
-    ax.set_title(('贪心解码' if mode=='t0' else '采样解码')+'：五基准合计条件接受率');grid(ax);ax.legend(frameon=False,fontsize=10)
-finish(fig,'05_conditional_acceptance','只有前面的 token 均被接受，才统计当前位置是否通过；越靠后，参与统计的片段越少。')
+    ax.set_title(('贪心解码' if mode=='t0' else '采样解码')+'：GSM8K 条件接受率');grid(ax);ax.legend(frameon=False,fontsize=10)
+finish(fig,'05_conditional_acceptance','仅统计 GSM8K 的 32 道题；当前位置的接受率以前面位置均已通过为条件。')
 
 # 6. Same-wave C1 measurements, no obsolete C4 or historical DSpark timing mixed in.
 fig,axes=plt.subplots(1,2,figsize=(12.8,4.8),layout='constrained')
