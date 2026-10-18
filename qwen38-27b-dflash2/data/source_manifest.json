@@ -1,0 +1,110 @@
+{
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\qwen38_27b_blog_20261018\\evidence\\collected.json": {
+    "sha256": "2fce4dc9f5405182bde96cbcce531dd3c00ea154b598ffdbbcc8dae4b3b23849",
+    "bytes": 346814
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\expansion_evaluation_complete\\summary.json": {
+    "sha256": "75159f64f3151c91466230e7b19de5f8386800e927b3203a6c824cb1166ca0f9",
+    "bytes": 62643
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\expansion_evaluation_complete\\PROTOCOL.json": {
+    "sha256": "fd011c318ccdeb0a98f51fce49103067b0440d95a39dde0f5c742e49b29e42c1",
+    "bytes": 6262
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_dspark_c1_t0/per_request_metrics.jsonl": {
+    "sha256": "2c98c93d468795b23758abbe3112167ee7b0a20b7ab4e5e95fdba462f5742f96",
+    "bytes": 103707
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_dspark_c1_t1/per_request_metrics.jsonl": {
+    "sha256": "af10729869f87787019b320260aab152e8c19b8dc49c9bd532c926d311350a24",
+    "bytes": 103696
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\27b_experiment_review_20261009\\epoch_validation_recovered.json": {
+    "sha256": "89c84674a7c235202974f7ba47d21ab0bf39dc7c15d99c435a931a04d4e7e87b",
+    "bytes": 7527
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\QWEN38_27B_SCRATCH_AND_CONTINUATION_RECIPE.json": {
+    "sha256": "f7e0c2221be78a9b79e769e9907c046d0f6232c5d9c1f8bca4daa2d816df34d1",
+    "bytes": 11129
+  },
+  "/mnt/cfs/9n-das-admin/llm_models/draft_model_train/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/selection_v3_03/data_mix_actual.json": {
+    "sha256": "af8e6a071b44e8c27ed07c37c201d4604d2c5195b639eb009133636fe9ee47c2",
+    "bytes": 9536
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\qwen38_27b_blog_20261018\\evidence\\training_scalars.json": {
+    "sha256": "efb343fde95acb27c5499c2505f127edc428917de667b33654298ccbf885d3b2",
+    "bytes": 738284
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/overlap/audit/metrics_rank0.jsonl": {
+    "sha256": "630b4e20d1e908769422d39d8cd1c80fe15f58a43cee6d1fffd2151e89c5344a",
+    "bytes": 10207028
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/overlap/audit/metrics_rank1.jsonl": {
+    "sha256": "53ad52ebe2644599b3ca933ff7e511201cbf599d4b2638115a5421ca4ecc95c1",
+    "bytes": 10206838
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/overlap/audit/baseline_rank0.json": {
+    "sha256": "27b5bf0808f9aa74e1f920933e6e93547df592ba72c583b784f4e4bf80b2ea4c",
+    "bytes": 5759
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/overlap/audit/final_rank0.json": {
+    "sha256": "dc2c93a2c12c52131dfd4a9409c49b63053d1c12c30f093e0c16bd8d4b49f661",
+    "bytes": 5754
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/sampled_ce/audit/metrics_rank0.jsonl": {
+    "sha256": "9d6a785a9852b25cc6471c1f68487572b8caec8280f66a5828507af52aaf059f",
+    "bytes": 10449881
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/sampled_ce/audit/metrics_rank1.jsonl": {
+    "sha256": "e54d63b199c6cbda8eda719be82fec0b43b71a37a4d8235c6e4a19a24b3cfc2a",
+    "bytes": 10448802
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/sampled_ce/audit/baseline_rank0.json": {
+    "sha256": "ac1c35649dfd22be30061f54822f19d2c11d2c67dc7d43c1bfb4dc442f9e5fc5",
+    "bytes": 5903
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/sampled_ce/audit/final_rank0.json": {
+    "sha256": "725990ab8b051fb000393bf178406d805c280626dd9a0541a7b7a90eaf4666f3",
+    "bytes": 5901
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\qwen38_27b_blog_20261018\\evidence\\foundation_sources.json": {
+    "sha256": "46caf9e7ed9edc4d2917f3a1f7017a3141061583813f9a3e1f77eaa93f53e29c",
+    "bytes": 856
+  },
+  "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_sampled_ce_targeted_20261009/paired_100m_01/main_7gpu_01/independent_update_audit.json": {
+    "sha256": "1598a7dc797fcf52792b3c71ed184af4d92a0af6dbba4f52b811d2bd66ce52a9",
+    "bytes": 597
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\targeted_t1_single_seed_results\\summary.json": {
+    "sha256": "657eef7528fdb70cdc3f7cebb10068fdf44943c74486fead75fde11f4a8ccb15",
+    "bytes": 43264
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\targeted_t0_five_results\\summary.json": {
+    "sha256": "319a219774e058f561ac22c96d705a6f5c34eda154cb72e0edd68ff4c68a6899",
+    "bytes": 19082
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\CONTEXT_NATIVE500_RESULT.json": {
+    "sha256": "b53a551219d320d4f95fbd61dd9076f63b3cd987897edbf8ec0190351c7a0f9a",
+    "bytes": 24138
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\selector_results\\evaluation\\summary.json": {
+    "sha256": "b609225008139de135f182e45605d44e4db0b44092aead6c37af40e771c3737e",
+    "bytes": 18962
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\overlap_results\\evaluation\\summary.json": {
+    "sha256": "81074742a1cc019eb26ac415c17211d8839f73b1b0a61c8ffb2545c028017eb7",
+    "bytes": 18988
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\candidate_support_results\\evaluation\\summary.json": {
+    "sha256": "18ac79073b8afe049f54a79cdb44f2bc4a1c3bc4355724d19be6ee2170562500",
+    "bytes": 18930
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\fixed_prefix_results\\paired_analysis.json": {
+    "sha256": "4f9e5c32a8f7fcb66ff394eb80a011cf54ded4e2ff8d552c337e999d8957128b",
+    "bytes": 10931
+  },
+  "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\next_training_plan_20261009\\method_expansion697_20261014\\EXPANSION_FINAL_VERDICT_v1.json": {
+    "sha256": "6646eaeaa9cb640137453c952f55d9451f5d29a7cfc85905865c0f909d4cd1f0",
+    "bytes": 3347
+  }
+}

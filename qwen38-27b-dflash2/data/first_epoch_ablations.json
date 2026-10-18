@@ -1,0 +1,511 @@
+{
+  "random_initialization_first_epoch": {
+    "alpha_0_1": {
+      "validation": {
+        "loss_epoch": 0.40752054457498793,
+        "ce_loss_epoch": 1.2807228353493,
+        "tv_loss_epoch": 0.2522837811915571,
+        "accept_rate_epoch": 0.43917466188723875,
+        "accept_len_epoch": 3.349384928447973,
+        "full_acc_epoch": 0.452082194750305,
+        "position_1_acc_epoch": 0.7980792130102312,
+        "position_2_acc_epoch": 0.5965127515967807,
+        "position_3_acc_epoch": 0.47738942112253324,
+        "position_4_acc_epoch": 0.39702817858895884,
+        "position_5_acc_epoch": 0.3391321159088449,
+        "position_6_acc_epoch": 0.29487184338179095,
+        "position_7_acc_epoch": 0.2601815586672447,
+        "eal_epoch": 3.675866605988724,
+        "unary_loss_epoch": 0.35512763653022444,
+        "selector_loss_epoch": 0.523929787418557,
+        "unary_candidate_recall_at_16_epoch": 0.780150544690922,
+        "unary_candidate_target_mass_at_16_epoch": 0.8803849043900702,
+        "teacher_forced_selector_acc_epoch": 0.7111351772755891,
+        "unary_top_16_oracle_accepted_length_epoch": 5.547917103870105
+      },
+      "serving_t0": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.391812489394039
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.677323976466496
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.440989572388369
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.271240329463471
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.4308029689685333
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.442433867336182
+        }
+      },
+      "checkpoint": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/epoch_snapshots/ep0"
+    },
+    "alpha_1_0": {
+      "validation": {
+        "loss_epoch": 0.766920111814521,
+        "ce_loss_epoch": 1.4377505033632962,
+        "tv_loss_epoch": 0.26416522287493965,
+        "accept_rate_epoch": 0.41808984764797374,
+        "accept_len_epoch": 3.241034480319361,
+        "full_acc_epoch": 0.4427885902203856,
+        "position_1_acc_epoch": 0.788570067696777,
+        "position_2_acc_epoch": 0.5844566792999834,
+        "position_3_acc_epoch": 0.4669366996330995,
+        "position_4_acc_epoch": 0.3876179934418299,
+        "position_5_acc_epoch": 0.3305906382190239,
+        "position_6_acc_epoch": 0.2873359731502993,
+        "position_7_acc_epoch": 0.25264169659201263,
+        "eal_epoch": 3.6654732290018557,
+        "unary_loss_epoch": 0.38152378038089707,
+        "selector_loss_epoch": 0.3853961252337717,
+        "unary_candidate_recall_at_16_epoch": 0.7415629900912402,
+        "unary_candidate_target_mass_at_16_epoch": 0.8713707687060221,
+        "teacher_forced_selector_acc_epoch": 0.7455146422502812,
+        "unary_top_16_oracle_accepted_length_epoch": 5.19231166454844
+      },
+      "serving_t0": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.454889268850389
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.690480155700551
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.332648793780284
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.263501123050724
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.486507849526532
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.445605438181696
+        }
+      },
+      "checkpoint": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_a1p0_20260929/run/checkpoints/0"
+    },
+    "comparison": {
+      "gsm8k": {
+        "delta": 0.06307677945634976,
+        "paired_prompt_ci95": [
+          -0.03591930797952413,
+          0.17422477040831774
+        ]
+      },
+      "math500": {
+        "delta": 0.013156179234055848,
+        "paired_prompt_ci95": [
+          -0.08953798648024969,
+          0.11425173564302198
+        ]
+      },
+      "humaneval": {
+        "delta": -0.10834077860808472,
+        "paired_prompt_ci95": [
+          -0.3161450288052424,
+          0.06554717778003868
+        ]
+      },
+      "mbpp": {
+        "delta": -0.007739206412747238,
+        "paired_prompt_ci95": [
+          -0.18894442488042426,
+          0.13977796058984324
+        ]
+      },
+      "mt-bench": {
+        "delta": 0.05570488055799838,
+        "paired_prompt_ci95": [
+          -0.042985520570994806,
+          0.16557461414475214
+        ]
+      },
+      "overall": {
+        "delta": 0.003171570845514407,
+        "paired_prompt_ci95": [
+          -0.06298210881597648,
+          0.06452468283321612
+        ]
+      }
+    }
+  },
+  "fixed_checkpoint_one_epoch_continuation": {
+    "codev1": {
+      "serving_t1": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.506572343972475
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.742877817189905
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.114251239618288
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.394285540283872
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.543645747451536
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.4603265377032155
+        }
+      },
+      "training_arguments": {
+        "--from-pretrained": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/epoch_snapshots/cont_ep1",
+        "--data-path": "/export/home/ext.wanghao231/prepared_128k",
+        "--lr": "0.0003",
+        "--dflash-decay-gamma": "4.0",
+        "--selector-loss-alpha": "0.1",
+        "--epochs": "1",
+        "--total-seq-len": "8192",
+        "--max-anchors": "1024",
+        "--seed": "42"
+      }
+    },
+    "gamma2": {
+      "serving_t1": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.373878413643669
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.818152801545868
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.070376389703386
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.428972006672887
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.533491967013338
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.44497431571583
+        }
+      },
+      "training_arguments": {
+        "--from-pretrained": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/epoch_snapshots/cont_ep1",
+        "--data-path": "/export/home/ext.wanghao231/prepared_128k",
+        "--lr": "0.0003",
+        "--dflash-decay-gamma": "2.0",
+        "--selector-loss-alpha": "0.1",
+        "--epochs": "1",
+        "--total-seq-len": "8192",
+        "--max-anchors": "1024",
+        "--seed": "42"
+      }
+    },
+    "pen0": {
+      "serving_t1": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.358025870342776
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.864122015446945
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.169342137676045
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.384022577002518
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.658789445004798
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.486860409094617
+        }
+      },
+      "training_arguments": {
+        "--from-pretrained": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/epoch_snapshots/cont_ep1",
+        "--data-path": "/export/home/ext.wanghao231/prepared_pen0",
+        "--lr": "0.0003",
+        "--dflash-decay-gamma": "4.0",
+        "--selector-loss-alpha": "0.1",
+        "--epochs": "1",
+        "--total-seq-len": "8192",
+        "--max-anchors": "1024",
+        "--seed": "42"
+      }
+    },
+    "pen0ls": {
+      "serving_t1": {
+        "gsm8k": {
+          "n": 32,
+          "request_mean_tau": 5.370186959853625
+        },
+        "math500": {
+          "n": 32,
+          "request_mean_tau": 4.787597488991085
+        },
+        "humaneval": {
+          "n": 32,
+          "request_mean_tau": 4.245611443306896
+        },
+        "mbpp": {
+          "n": 32,
+          "request_mean_tau": 4.380317875775927
+        },
+        "mt-bench": {
+          "n": 32,
+          "request_mean_tau": 3.602139449262819
+        },
+        "overall": {
+          "n": 160,
+          "request_mean_tau": 4.477170643438071
+        }
+      },
+      "training_arguments": {
+        "--from-pretrained": "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/epoch_snapshots/cont_ep1",
+        "--data-path": "/export/home/ext.wanghao231/prepared_pen0",
+        "--lr": "0.0003",
+        "--dflash-decay-gamma": "4.0",
+        "--selector-loss-alpha": "0.3",
+        "--epochs": "1",
+        "--total-seq-len": "8192",
+        "--max-anchors": "1024",
+        "--seed": "42"
+      }
+    },
+    "gamma2_minus_codev1": {
+      "gsm8k": {
+        "delta": -0.1326939303288056,
+        "paired_prompt_ci95": [
+          -0.2777204832074423,
+          0.012599909898210004
+        ]
+      },
+      "math500": {
+        "delta": 0.07527498435596286,
+        "paired_prompt_ci95": [
+          -0.04707221134791774,
+          0.20254702086192694
+        ]
+      },
+      "humaneval": {
+        "delta": -0.04387484991490165,
+        "paired_prompt_ci95": [
+          -0.21054647880109312,
+          0.1405593859172596
+        ]
+      },
+      "mbpp": {
+        "delta": 0.03468646638901547,
+        "paired_prompt_ci95": [
+          -0.10331633865386317,
+          0.17545240745150067
+        ]
+      },
+      "mt-bench": {
+        "delta": -0.010153780438197715,
+        "paired_prompt_ci95": [
+          -0.10600810478755542,
+          0.08204531064865903
+        ]
+      },
+      "overall": {
+        "delta": -0.015352221987385326,
+        "paired_prompt_ci95": [
+          -0.07756782457176133,
+          0.04914479345931928
+        ]
+      }
+    },
+    "pen0ls_minus_pen0": {
+      "gsm8k": {
+        "delta": 0.012161089510849293,
+        "paired_prompt_ci95": [
+          -0.08749134734171271,
+          0.10874608441928163
+        ]
+      },
+      "math500": {
+        "delta": -0.07652452645586079,
+        "paired_prompt_ci95": [
+          -0.22741444635776434,
+          0.06807208903280539
+        ]
+      },
+      "humaneval": {
+        "delta": 0.07626930563085121,
+        "paired_prompt_ci95": [
+          -0.10059844093347219,
+          0.2702116148379669
+        ]
+      },
+      "mbpp": {
+        "delta": -0.003704701226590834,
+        "paired_prompt_ci95": [
+          -0.14814170501542814,
+          0.13469412755599167
+        ]
+      },
+      "mt-bench": {
+        "delta": -0.05664999574197896,
+        "paired_prompt_ci95": [
+          -0.1896174206354075,
+          0.0758732185284232
+        ]
+      },
+      "overall": {
+        "delta": -0.00968976565654602,
+        "paired_prompt_ci95": [
+          -0.07492154937409999,
+          0.05545225343233584
+        ]
+      }
+    }
+  },
+  "recomputed_requests": 960,
+  "first_epoch_shared_recipe": {
+    "learning_rate": 0.0006,
+    "planned_epochs_for_scheduler": 5,
+    "observed_epoch_compared": 1,
+    "warmup_ratio": 0.04,
+    "seed": 42,
+    "packed_tokens": 8192,
+    "anchors": 1024,
+    "data_recipe": "Open-PerfectBlend mixture described in the article"
+  },
+  "limitations": [
+    "First-epoch scratch comparison is one training seed; initial tensors and per-step inputs were not audited pairwise.",
+    "Historical alpha1 prepared directory is no longer present; data recipe is taken from archived commands and run records, not a new byte-for-byte dataset audit.",
+    "T0 first-epoch and T1 continuation comparisons are separate from the final-model benchmark tables.",
+    "Paired confidence intervals resample existing prompts; they do not measure independent training-seed variation."
+  ],
+  "sources": {
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/epoch_snapshots/ep0/val_metrics.json": {
+      "sha256": "fef2324fff2d0a4a4478033f593345cc5b4846dc16a87172a7200b21cf8ddb84",
+      "bytes": 891
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_a1p0_20260929/run/epoch_snapshots/ep0/val_metrics.json": {
+      "sha256": "93613109e4841f909f48827144882cc9c2c9c77fa3c0530ae0a949816437ced9",
+      "bytes": 893
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/eval_ep0_ab_20261001/armA_ep0_t0/per_request_metrics.jsonl": {
+      "sha256": "92ec689e34c200524c762fac5d1f5f4b20da367de72a0ff9af23642bc8ca89aa",
+      "bytes": 128142
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/eval_ep0_ab_20261001/armA_ep0_t0/summary.json": {
+      "sha256": "31a99733fbfc19bb02f37a87b094874c271809a964ff0abd47a4096ebf85e71e",
+      "bytes": 4462
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/eval_ep0_ab_20261001/armB_ep0_t0/per_request_metrics.jsonl": {
+      "sha256": "639574e488f5061e3fa05231ea0928ebe5bfef263794e9ca5f26319ff0d6d4b4",
+      "bytes": 127961
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/run/eval_ep0_ab_20261001/armB_ep0_t0/summary.json": {
+      "sha256": "de3bb1f4e3459aed68f5bbe7c0de68d2e265aaf336e74116460e8f13777305d3",
+      "bytes": 4463
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_a1p0_20260929/run/checkpoints/0/train_command.txt": {
+      "sha256": "4d05abd4087817b9546287978049a791bc2489a45fd8da9a36527d7b2f3e55a5",
+      "bytes": 1582
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb860k_20260926/train.sh": {
+      "sha256": "28eec47c6fcc8f9d8e1a3917ea0902be9665468497f70c06f37da79d0c6d5522",
+      "bytes": 1707
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/codev1/s0/per_request_metrics.jsonl": {
+      "sha256": "aa945768f0cb27882f542f80abf649f7713e81b11ac784fce5ddf12f7d630b79",
+      "bytes": 63482
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/codev1/s1/per_request_metrics.jsonl": {
+      "sha256": "7c0ad925aa647c6cd77cddcd0eb01a847243d1f926f4529d6d2f18dff7b81eee",
+      "bytes": 63591
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/codev1/merged_summary.json": {
+      "sha256": "7502ac34cc13b18ac4981d1560628ac8fad5870877d4f797b51ceaa29a0d293e",
+      "bytes": 1002
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/checkpoints_codev1/0/train_command.txt": {
+      "sha256": "e168af114a2b3e90bc0491785087de2195bd9f316e63ec9ede8630359968b0df",
+      "bytes": 1747
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/gamma2/s0/per_request_metrics.jsonl": {
+      "sha256": "5b572a3733f3840c3049ddbbeb9f4ab129e6342d5e65f69af7eb52eaf6d01bd0",
+      "bytes": 63936
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/gamma2/s1/per_request_metrics.jsonl": {
+      "sha256": "4de37672900a7dec63dde4b8009d68ab0e91f54dac185df695d93cf4662f0342",
+      "bytes": 63840
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/ret160_corrected/gamma2/merged_summary.json": {
+      "sha256": "e252bda11d7869f3d19eb04371ccadc38a0ceabb2080c1b906b0c69e22f4d3ab",
+      "bytes": 1002
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/checkpoints_gamma2/0/train_command.txt": {
+      "sha256": "8a211c2e73d4891dec59ef87c1c025e794b730b523ec8aeb79469acdcb5e793c",
+      "bytes": 1742
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0_t1c/s0/per_request_metrics.jsonl": {
+      "sha256": "f16034b3b3c475b2f4e4bb31a93cb90ff5f266006b329e823bbef572741fcc75",
+      "bytes": 63763
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0_t1c/s1/per_request_metrics.jsonl": {
+      "sha256": "74cfb44bfcd160e56b6b807e37eeea4ef1dafa0f1cb14dc6c0ae708393e32064",
+      "bytes": 63867
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0_t1c/merged_summary.json": {
+      "sha256": "03a6c1b31191c61816e01f5469477b07bd6a40fe891b673dabedb04c7f88a054",
+      "bytes": 997
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/checkpoints_pen0/0/train_command.txt": {
+      "sha256": "df68e4d4de558c79c08cdaa6416dcd26e25dcec54defaba29867043f2eee38dc",
+      "bytes": 1741
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0ls_t1c/s0/per_request_metrics.jsonl": {
+      "sha256": "1a9c6dffe9165743c16ef903d8187551f39978915698b3f3a8003c4e8af088f5",
+      "bytes": 63553
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0ls_t1c/s1/per_request_metrics.jsonl": {
+      "sha256": "22a7210bcd84cc7f4d7ad0794f3c5a243a56a5b00f38e5372e176226a405386b",
+      "bytes": 63631
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/eval_pen0ls_t1c/merged_summary.json": {
+      "sha256": "857deb90d5dc8d5f922501a19b5e733aa6fa62a600adb1a9186a5cfd1522f5f0",
+      "bytes": 998
+    },
+    "/export/home/ext.wanghao231/dflash2_work/public_reproduction/qwen38_27b_pb900kv2_ep4cont_20261004/run/checkpoints_pen0ls/0/train_command.txt": {
+      "sha256": "4019e726a00b566291fcd2b66f69ea83d03b330e311a9806774a865feb01c4ea",
+      "bytes": 1740
+    }
+  }
+}

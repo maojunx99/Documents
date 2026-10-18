@@ -1,0 +1,48 @@
+[
+  {
+    "title": "Parallel Path Selector",
+    "author": "Inco AI",
+    "page_title": "DFlash 2: Keep Drafting Parallel",
+    "source_url": "https://inco.ai/blog/dflash2/#figure-1",
+    "retrieved_date": "2026-10-18",
+    "method": "Static export of official inline SVG with computed presentation; font-family replaced by Arial for portable rendering. No geometry, labels, colours or connecting paths redrawn.",
+    "animated_source": true,
+    "files": [
+      {
+        "path": "figures/official/candidate_path_selector.png",
+        "sha256": "e6df38fb1bbb923ed20a02db0b43afa03fd562ea2a6c85be3b2f9c94ba57be4b",
+        "dimensions": [
+          2292,
+          1044
+        ]
+      },
+      {
+        "path": "figures/official/candidate_path_selector.svg",
+        "sha256": "9c5fe574cdc79bc576bf93174d05036114a8e7caadd1bf5dd3328c3d08aae7a2"
+      }
+    ]
+  },
+  {
+    "title": "Intra-block dynamic short convolution",
+    "author": "Inco AI",
+    "page_title": "DFlash 2: Keep Drafting Parallel",
+    "source_url": "https://inco.ai/blog/dflash2/#figure-4",
+    "retrieved_date": "2026-10-18",
+    "method": "Static export of official inline SVG with computed presentation; font-family replaced by Arial for portable rendering. No geometry, labels, colours or connecting paths redrawn.",
+    "animated_source": false,
+    "files": [
+      {
+        "path": "figures/official/dynamic_short_convolution.png",
+        "sha256": "96bd4edf30ade5ff0517929783093d7c4489b448e40723200480c48c717a7c7d",
+        "dimensions": [
+          2280,
+          1140
+        ]
+      },
+      {
+        "path": "figures/official/dynamic_short_convolution.svg",
+        "sha256": "3b07a201a6a7ae12024fadae812886279d29d96e198e651cb68545a55199cc93"
+      }
+    ]
+  }
+]
