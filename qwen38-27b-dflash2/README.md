@@ -22,3 +22,5 @@ python -X utf8 render_figures.py
 ```
 
 旧版文稿保存在本地`revisions/`中，不包含在当前发布包内。发布包不包含模型权重和原始题目、回答文本。
+
+训练与重采样代码：[GPU / NPU完整训练管线](pipeline/README.md)，包括实际源码、NPU适配、环境版本、运行入口和验证说明。

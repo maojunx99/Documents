@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-19",
+  "scope": "Publication checks only; no accelerator training, inference or regeneration launched.",
+  "linux_process_cleanup": {
+    "passed": true,
+    "cpu_process_cleanup_cases": [
+      {
+        "orphaned_launcher": false,
+        "owned_members": 2,
+        "remaining": 0,
+        "unowned_sentinel_alive": true
+      },
+      {
+        "orphaned_launcher": true,
+        "owned_members": 2,
+        "remaining": 0,
+        "unowned_sentinel_alive": true
+      }
+    ],
+    "accelerator_jobs_started": 0
+  },
+  "bash_syntax": {
+    "bash_syntax_passed": true,
+    "script_count": 22,
+    "accelerator_jobs_started": 0
+  },
+  "secrets_scan": {
+    "known_credential_prefixes": 0,
+    "private_keys": 0,
+    "token_literals": 0,
+    "private_machine_addresses": 0
+  },
+  "hardware_retest_of_public_wrappers": false
+}

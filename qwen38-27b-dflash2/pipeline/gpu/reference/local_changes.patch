@@ -1,0 +1,200 @@
+diff --git a/hs_connectors/src/hs_connectors/transfer.py b/hs_connectors/src/hs_connectors/transfer.py
+index 3b57118..e243b06 100644
+--- a/hs_connectors/src/hs_connectors/transfer.py
++++ b/hs_connectors/src/hs_connectors/transfer.py
+@@ -23,7 +23,7 @@ if TYPE_CHECKING:
+     from collections.abc import Callable
+ 
+ 
+-def wait_for_lock(lock_path: str, timeout: float = 10.0, poll_interval: float = 0.1):
++def wait_for_lock(lock_path: str, timeout: float = 120.0, poll_interval: float = 0.1):
+     fd = os.open(lock_path, os.O_RDWR)
+     try:
+         deadline = time.monotonic() + timeout
+diff --git a/src/speculators/data_generation/vllm_client.py b/src/speculators/data_generation/vllm_client.py
+index b1fd8a1..e515054 100644
+--- a/src/speculators/data_generation/vllm_client.py
++++ b/src/speculators/data_generation/vllm_client.py
+@@ -16,7 +16,7 @@ if TYPE_CHECKING:
+ 
+ logger = logging.getLogger(__name__)
+ 
+-DEFAULT_REQUEST_TIMEOUT = 120  # seconds
++DEFAULT_REQUEST_TIMEOUT = 480  # seconds
+ DEFAULT_MAX_RETRIES = 3
+ RETRY_BACKOFF_BASE = 2  # seconds
+ 
+diff --git a/src/speculators/models/dflash2/core.py b/src/speculators/models/dflash2/core.py
+index 0f6360f..e0789c9 100644
+--- a/src/speculators/models/dflash2/core.py
++++ b/src/speculators/models/dflash2/core.py
+@@ -112,6 +112,7 @@ class DFlash2DraftModel(DFlashDraftModel):
+             ),
+             "dpace_alpha": kwargs.get("dpace_alpha", 0.5),
+             "selector_loss_alpha": kwargs.get("selector_loss_alpha", 1.0),
++            "selector_stop_gradient": kwargs.get("selector_stop_gradient", False),
+         }
+         return dict(shared), dict(shared)
+ 
+@@ -142,6 +143,7 @@ class DFlash2DraftModel(DFlashDraftModel):
+         gamma: float = 4.0,
+         max_anchors: int = 512,
+         selector_loss_alpha: float = 1.0,
++        selector_stop_gradient: bool = False,
+         per_position_loss_weight: str = "fixed-exp-decay",
+         dpace_alpha: float = 0.5,
+         **kwargs,
+@@ -167,9 +169,18 @@ class DFlash2DraftModel(DFlashDraftModel):
+         training_candidate_ids, target_positions, contains_target = (
+             selector_training_candidates(candidate_ids, target_ids)
+         )
++        if selector_stop_gradient:
++            # Isolate the selector objective: only the selector's own
++            # parameters train on it, while the primary DFlash objective
++            # keeps the original tensors and their gradient path.
++            selector_unary_logits = unary_logits.detach()
++            selector_hidden = hidden.detach()
++        else:
++            selector_unary_logits = unary_logits
++            selector_hidden = hidden
+         candidate_logits = self.candidate_selector.score_candidates(
+-            unary_logits,
+-            hidden,
++            selector_unary_logits,
++            selector_hidden,
+             predecessor_ids.reshape(1, -1),
+             training_candidate_ids,
+         )
+diff --git a/src/speculators/train/config/schema.py b/src/speculators/train/config/schema.py
+index 66bcd45..b880bdc 100644
+--- a/src/speculators/train/config/schema.py
++++ b/src/speculators/train/config/schema.py
+@@ -505,6 +505,13 @@ class DFlash2Args(_Group):
+         ge=0.0,
+         description="DFlash2: weight of the candidate-selector K-way CE term.",
+     )
++    selector_stop_gradient: bool = Field(
++        default=False,
++        description="DFlash2: keep the selector CE from training the backbone; "
++        "detaches unary logits and draft hidden states inside the selector "
++        "term only, so only the selector's own parameters receive that "
++        "gradient.",
++    )
+ 
+ 
+ class DSparkArgs(_Group):
+diff --git a/tests/unit/models/test_dflash2_model_definitions.py b/tests/unit/models/test_dflash2_model_definitions.py
+index 44cac2c..602d4a6 100644
+--- a/tests/unit/models/test_dflash2_model_definitions.py
++++ b/tests/unit/models/test_dflash2_model_definitions.py
+@@ -503,6 +503,110 @@ def test_trainer_kwargs_include_selector_loss_alpha():
+     assert val_kwargs["selector_loss_alpha"] == pytest.approx(0.25)
+ 
+ 
++def test_trainer_kwargs_include_selector_stop_gradient():
++    train_kwargs, val_kwargs = DFlash2DraftModel.get_trainer_kwargs(
++        loss_fn="ce",
++        loss_implementation="eager",
++        selector_stop_gradient=True,
++    )
++
++    assert train_kwargs["selector_stop_gradient"] is True
++    assert val_kwargs["selector_stop_gradient"] is True
++
++    default_kwargs, _ = DFlash2DraftModel.get_trainer_kwargs(
++        loss_fn="ce",
++        loss_implementation="eager",
++    )
++    assert default_kwargs["selector_stop_gradient"] is False
++
++
++def test_selector_stop_gradient_isolates_backbone_gradients():
++    """With the flag on, backbone gradients equal the primary-only reference."""
++    torch.manual_seed(0)
++    model = DFlash2DraftModel(_tiny_config())
++    with torch.no_grad():
++        for parameter in model.parameters():
++            if parameter.isnan().any():
++                torch.nn.init.normal_(parameter, std=0.02)
++
++    seq_len = 32
++    hidden_size = model.config.transformer_layer_config.hidden_size
++    inputs = {
++        "hidden_states": torch.randn(1, seq_len, 2 * hidden_size),
++        "input_ids": torch.randint(0, model.verifier_vocab_size, (1, seq_len)),
++        "loss_mask": torch.ones(1, seq_len),
++        "verifier_last_hidden_states": torch.randn(1, seq_len, hidden_size),
++        "document_ids": torch.zeros(1, seq_len, dtype=torch.long),
++    }
++    eager_kl = resolve_loss_config("kl_div", "eager")
++    eager_tv = resolve_loss_config("tv", "eager")["tv"][0]
++
++    # The compiled coupled/stopped variants differ bitwise (different
++    # inductor fusion); the gradient comparison needs the eager path.
++    @torch.compiler.disable
++    def forward_backward(**extra):
++        # Anchor selection consumes the global RNG; reseed so every
++        # variant sees the same anchors and comparisons stay exact.
++        torch.manual_seed(1234)
++        _, loss, _ = model(  # type: ignore[call-arg]
++            **inputs,
++            max_anchors=4,
++            loss_config=eager_kl,
++            tv_loss_fn=eager_tv,
++            **extra,
++        )
++        loss.backward()
++        return loss.detach().clone()
++
++    def backward_grads(**extra):
++        model.zero_grad(set_to_none=True)
++        loss = forward_backward(**extra)
++        return loss, {
++            name: (None if param.grad is None else param.grad.detach().clone())
++            for name, param in model.named_parameters()
++        }
++
++    loss_coupled, grads_coupled = backward_grads(selector_loss_alpha=1.0)
++    loss_stopped, grads_stopped = backward_grads(
++        selector_loss_alpha=1.0, selector_stop_gradient=True
++    )
++    _, grads_primary = backward_grads(selector_loss_alpha=0.0)
++
++    # Detaching changes gradients only, never the reported loss value.
++    assert torch.equal(loss_stopped, loss_coupled)
++
++    selector_names = [
++        name for name in grads_stopped if name.startswith("candidate_selector.")
++    ]
++    backbone_names = [
++        name
++        for name in grads_stopped
++        if not name.startswith("candidate_selector.")
++    ]
++
++    # Stopped backbone gradients exactly match the primary-only reference.
++    for name in backbone_names:
++        assert (grads_stopped[name] is None) == (grads_primary[name] is None), name
++        if grads_primary[name] is not None:
++            assert torch.equal(grads_stopped[name], grads_primary[name]), name
++
++    # The selector still trains on its own objective.
++    for name in selector_names:
++        assert grads_stopped[name] is not None, name
++        assert grads_stopped[name].abs().sum() > 0, name
++
++    # Without the flag the coupled selector CE reaches the backbone.
++    coupled_backbone_diff = max(
++        (
++            (grads_coupled[name] - grads_primary[name]).abs().max().item()
++            for name in backbone_names
++            if grads_coupled[name] is not None and grads_primary[name] is not None
++        ),
++        default=0.0,
++    )
++    assert coupled_backbone_diff > 0
++
++
+ @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is required")
+ def test_tiny_gpu_forward_backward_reaches_all_new_parameters():
+     """A real training step must update every convolution and selector tensor."""

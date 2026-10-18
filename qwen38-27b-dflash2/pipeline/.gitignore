@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+*.log
+runs/
+probes/
+preflight/
+archives/
+hidden_states/
+checkpoints/
+prepared/
+*.safetensors
+*.pt
+*.arrow
+.env
+config.local.*

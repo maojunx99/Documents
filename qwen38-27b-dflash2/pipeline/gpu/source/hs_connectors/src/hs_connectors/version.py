@@ -1,0 +1,6 @@
+version = "0.7.1a0"
+build_type = "nightly"
+build_iteration = "0"
+git_commit = "fd69f5326d695e98434196b3860956494f4c0004"
+git_branch = "dflash2"
+git_last_tag = ""
