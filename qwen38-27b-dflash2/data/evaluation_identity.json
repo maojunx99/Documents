@@ -9,6 +9,16 @@
       "sha256": "27ead8327cf7fbbc96c3535127c1f62550a53409902d072047adaa2a39f611f4"
     }
   },
+  "community_comparison_weight": {
+    "method": "DSpark",
+    "repo_id": "RadixArk/Qwen3.8-27B-DSpark",
+    "url": "https://huggingface.co/RadixArk/Qwen3.8-27B-DSpark",
+    "revision": "b9a5dbdf03bc999c6c73c426b19c2d9041cea393",
+    "model_safetensors_sha256": "2aff025f45823b40ebe726b9dfa40302f3512bd9a11c3a7347de32a567acd9a7",
+    "evaluated_path": "/export/home/ext.wanghao231/qwen_models/Qwen3.8-27B-DSpark",
+    "resolved_path": "/export/home/ext.wanghao231/dflash2_work/models/Qwen3.8-27B-DSpark",
+    "identity_basis": "Evaluation-script path, resolved directory, model card and recorded Hugging Face download metadata; no new inference or weight rehash."
+  },
   "sampling": {
     "t0": {
       "temperature": 0.0,
@@ -457,7 +467,7 @@
     "2": "Official short-convolution mechanism diagram; no performance data.",
     "3": "First-epoch random-initialization selector-weight ablation; historical comparison, not the final model.",
     "4": "Five baseline training validation endpoints, not final-model inference metrics.",
-    "5": "Main final-model evaluation: request-mean acceptance lengths. DSpark is historical reference.",
+    "5": "Main final-model evaluation: request-mean acceptance lengths. DSpark uses the RadixArk community checkpoint.",
     "6": "Same main final-model evaluation: total generated tokens / total request seconds.",
     "7": "Same main final-model evaluation: position counts divided by reached-position counts.",
     "8": "Supplementary dataset proportions and lengths; not the baseline dataset.",

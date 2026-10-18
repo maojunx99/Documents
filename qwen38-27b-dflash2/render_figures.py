@@ -86,13 +86,13 @@ finish(fig,'03_distribution_matching_training','浅色线为每步记录，深�
 fig,axes=plt.subplots(1,2,figsize=(13,5.1),layout='constrained')
 x=np.arange(5);width=.25
 for ax,mode in zip(axes,['t0','t1']):
-    for i,(model,label,color) in enumerate([('dspark_historical','DSpark（历史参考）',GRAY),('official','官方 DFlash2',BLUE),('ours','本文训练模型',ORANGE)]):
+    for i,(model,label,color) in enumerate([('dspark_historical','DSpark',GRAY),('official','官方 DFlash2',BLUE),('ours','本文训练模型',ORANGE)]):
         y=[D['evaluation'][mode][model][b]['request_mean_tau'] for b in BENCH]
         bars=ax.bar(x+(i-1)*width,y,width*.95,color=color,label=label,hatch='//' if i==0 else None,zorder=3)
         ax.bar_label(bars,fmt='%.2f',fontsize=8,padding=3,rotation=90)
     ax.set_xticks(x,LABELS,rotation=18);ax.set_ylim(0,7.15);ax.set_ylabel('逐请求平均接受长度');ax.set_title(('贪心解码（T=0）' if mode=='t0' else '采样解码（T=1）')+'：每个基准 32 道题');grid(ax)
 axes[0].legend(frameon=False,fontsize=9,loc='upper right')
-finish(fig,'04_five_benchmark_tau','官方与本文最终模型采用统一测试设置；DSpark 为此前对相同题目的测试结果。')
+finish(fig,'04_five_benchmark_tau','DSpark 列使用社区公开权重；三组均对相同的五基准题目进行测试。')
 
 # 5. Actual conditional acceptance, aggregated by reached positions, not TF accuracy.
 fig,axes=plt.subplots(1,2,figsize=(11.5,4.4),layout='constrained')

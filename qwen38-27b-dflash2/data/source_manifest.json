@@ -106,5 +106,17 @@
   "C:\\Users\\wanghao\\Desktop\\jd_remote\\diagnostics\\dflash2_analysis_20261008\\next_training_plan_20261009\\method_expansion697_20261014\\EXPANSION_FINAL_VERDICT_v1.json": {
     "sha256": "6646eaeaa9cb640137453c952f55d9451f5d29a7cfc85905865c0f909d4cd1f0",
     "bytes": 3347
+  },
+  "C:/Users/wanghao/Desktop/jd_remote/diagnostics/qwen38_27b_blog_20261018/evidence/regeneration_pb860_exact_source_review_20261018.txt": {
+    "sha256": "31536bc27bd6711bf27fda85c23094d453b72ea5d4d3a89cc3ccf920c298c6b7",
+    "bytes": 12134
+  },
+  "C:/Users/wanghao/Desktop/jd_remote/diagnostics/qwen38_27b_blog_20261018/evidence/dspark_model_source_review_20261018.json": {
+    "sha256": "4323f300577bd7a3c287fd34e3ca0ede6e62b6e1d321e32f3b22f37cf8bf5e2d",
+    "bytes": 6302
+  },
+  "C:/Users/wanghao/Desktop/jd_remote/diagnostics/qwen38_27b_blog_20261018/evidence/dspark_model_card_review_20261018.json": {
+    "sha256": "c0945b31c87ec8528c47708163d0de9008cdfea87a6281d84f37214fbe2f54b0",
+    "bytes": 7104
   }
 }

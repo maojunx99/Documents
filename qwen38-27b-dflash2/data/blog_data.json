@@ -1,5 +1,5 @@
 {
-  "article_version": "2026-10-18 revision 7: approved parameter-selection chapter structure",
+  "article_version": "2026-10-18 revision 8: confirmed data-generation, block-width and community-weight wording",
   "models": {
     "official": {
       "path": "/export/home/ext.wanghao231/dflash2_work/models/Qwen3.8-27B-DFlash2",
@@ -773,7 +773,9 @@
   },
   "public_dataset_references": {
     "Open-PerfectBlend": "https://huggingface.co/datasets/mlabonne/open-perfectblend",
-    "Nemotron-Post-Training-Dataset-v2": "https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2"
+    "Nemotron-Post-Training-Dataset-v2": "https://huggingface.co/datasets/nvidia/Nemotron-Post-Training-Dataset-v2",
+    "AQ-regenerated-source-collection": "https://modelscope.cn/datasets/inference-optimization/Qwen3-8B-Regenerated-Collection",
+    "Tulu3": "https://huggingface.co/datasets/allenai/tulu-3-sft-mixture"
   },
   "targeted_mix": {
     "pool_rows": 15682,
@@ -15756,5 +15758,26 @@
     "T1 uses presence_penalty=0; do not equate it to the official presence_penalty=1.5 table.",
     "No final697 C4 result is represented by these data.",
     "Epoch0 endpoint is recovered; its continuous per-step training trace is not reconstructed."
-  ]
+  ],
+  "community_comparison_weight": {
+    "method": "DSpark",
+    "repo_id": "RadixArk/Qwen3.8-27B-DSpark",
+    "url": "https://huggingface.co/RadixArk/Qwen3.8-27B-DSpark",
+    "revision": "b9a5dbdf03bc999c6c73c426b19c2d9041cea393",
+    "model_safetensors_sha256": "2aff025f45823b40ebe726b9dfa40302f3512bd9a11c3a7347de32a567acd9a7",
+    "evaluated_path": "/export/home/ext.wanghao231/qwen_models/Qwen3.8-27B-DSpark",
+    "resolved_path": "/export/home/ext.wanghao231/dflash2_work/models/Qwen3.8-27B-DSpark",
+    "identity_basis": "Evaluation-script path, resolved directory, model card and recorded Hugging Face download metadata; no new inference or weight rehash."
+  },
+  "foundation_regeneration": {
+    "model": "Qwen3.8-27B",
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "top_k": 20,
+    "presence_penalty": 1.5,
+    "reasoning_effort": "xhigh",
+    "max_tokens": 8192,
+    "source_script": "/export/home/ext.xumaojun1/dflash2_npu/scripts/lane_worker_pb.sh",
+    "verification": "Read-only inspection of the source script and sampling_params in transferred output metadata."
+  }
 }
