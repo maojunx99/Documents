@@ -114,6 +114,23 @@ class NpuSteps(unittest.TestCase):
         self.call('04_run.sh', '--config', str(self.config), '--dry-run', ok=False,
                   extra_env={'RUN_DIR': self.root.as_posix()})
 
+    def test_each_separate_stage_forwards_the_same_config_without_creating_a_run(self):
+        destination = self.root / 'staged_not_created'
+        scripts = [('01_preflight.sh', 'preflight'), ('02_regenerate.sh', 'regenerate'),
+                   ('03_prepare.sh', 'prepare'), ('04_train.sh', 'train'), ('05_evaluate.sh', 'evaluate')]
+        for script, name in scripts:
+            result = self.call('stages/'+script, '--config', str(self.config), '--dry-run',
+                               extra_env={'RUN_DIR': destination.as_posix(), 'EVAL_PER_BENCHMARK': '2'})
+            plan = json.loads(result.stdout)
+            self.assertEqual(plan['stage'], name)
+            self.assertEqual(plan['config']['input'], [str(self.prompts)])
+            if name == 'evaluate':
+                self.assertEqual(plan['evaluation']['modes'], ['t0', 't1'])
+                self.assertEqual(plan['evaluation']['expected_requests'], 20)
+                self.assertFalse(plan['evaluation']['manual_system_prompt'])
+        self.assertFalse(destination.exists())
+        self.call('stages/01_preflight.sh', '--config', str(self.config), '--dry-run', ok=False)
+
 
 class SmokeSelection(unittest.TestCase):
     def test_selection_preserves_sources_and_rejects_overwrite_or_short_input(self):

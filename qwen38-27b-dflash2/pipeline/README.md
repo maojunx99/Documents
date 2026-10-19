@@ -5,7 +5,7 @@
 | 平台 | 运行说明 | 入口 |
 |---|---|---|
 | GPU | [GPU训练与重采样](gpu/README.md) | `gpu/run_pipeline.py` |
-| NPU | [NPU分步运行](npu/README.md) | `examples/npu/01_container.sh`～`04_run.sh` |
+| NPU | [NPU一键与分阶段运行](npu/README.md) | `examples/npu/04_run.sh`或`examples/npu/stages/` |
 
 两条路线都包含目标回答重生成、数据预处理、在线教师、草稿训练、原生验证和检查点。模型权重、原始题源、设备驱动需另行准备；Speculators及hs-connectors的适配源码随仓库提供。
 

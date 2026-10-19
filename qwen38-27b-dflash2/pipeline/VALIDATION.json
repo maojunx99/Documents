@@ -150,5 +150,55 @@
       "128-row selection preserves raw inputs and rejects short input or overwrite"
     ],
     "official_clean_image_end_to_end_verified": false
+  },
+  "independent_stages_and_real_inference_entry": {
+    "date": "2026-10-19",
+    "new_hardware_training_or_inference_run": false,
+    "preserved_one_command_default": true,
+    "independent_stages": [
+      "preflight",
+      "regenerate",
+      "prepare",
+      "train",
+      "evaluate"
+    ],
+    "cpu_checks": [
+      "stage prerequisite/configuration/product/source/raw-input guards",
+      "completed stage skip and unfinished-stage/lock preservation",
+      "evaluation can follow archived raw training data",
+      "all five Bash stage entrypoints forward one config in dry-run without creating a run",
+      "user-only five-benchmark cases, seed/prompt pairing, T0/T1 request protocol",
+      "CPU process/HTTP stand-ins exercise full evaluation summary and raw-metrics re-audit",
+      "per-request mean versus draft-weighted tau; survival versus conditional rates"
+    ],
+    "existing_case_manifest_compatibility": {
+      "cases": 160,
+      "per_benchmark": 32,
+      "manual_system_prompt": false
+    },
+    "native_to_serving_config_parity": {
+      "passed": true,
+      "reference": "Installed H200 vLLM update_dflash2, CPU only",
+      "target_layer_ids": [
+        5,
+        19,
+        33,
+        47,
+        61
+      ],
+      "registered_architecture": "DFlash2DraftModel",
+      "noncausal_swa": true
+    },
+    "npu_training_runtime_capability_read_only": {
+      "version": "0.26.0+empty",
+      "registered_dflash_architectures": [
+        "DFlashDraftModel",
+        "DFlashLagunaForCausalLM"
+      ],
+      "dflash2_supported": false,
+      "draft_sample_method_field": true
+    },
+    "real_npu_five_benchmark_requests_completed_by_new_entry": 0,
+    "scope": "New orchestration and CPU contracts; actual evaluation requires a separate DFlash2-capable NPU runtime."
   }
 }

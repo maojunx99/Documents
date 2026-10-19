@@ -59,3 +59,19 @@ TEACHER_MAX_NUM_SEQS="${TEACHER_MAX_NUM_SEQS:-4}"
 TEACHER_MEMORY="${TEACHER_MEMORY:-0.80}"
 HIDDEN_CACHE="${HIDDEN_CACHE:-}" # Empty: under RUN_DIR; explicit path must not exist.
 STAGE_TIMEOUT="${STAGE_TIMEOUT:-604800}" # Per-stage upper bound; adjust to your budget.
+
+# Standalone real-inference evaluation (T0 + T1, five benchmarks, no extra system prompt).
+# Set a fixed RUN_DIR above when using the separate stage scripts.
+EVAL_CASES="${EVAL_CASES:-/data/prompts/five_benchmark_cases.json}"
+EVAL_OUTPUT="${EVAL_OUTPUT:-}" # Empty: a fresh RUN_DIR/evaluations/<timestamp> directory per call.
+EVAL_CHECKPOINT="${EVAL_CHECKPOINT:-}" # Empty: last completed native epoch checkpoint.
+EVAL_REFERENCE="${EVAL_REFERENCE:-}" # Optional official/community serving checkpoint.
+EVAL_PYTHON="${EVAL_PYTHON:-$PYTHON}" # Must support DFlash2; may differ from training Python.
+EVAL_TP_GROUPS="${EVAL_TP_GROUPS:-0,1;2,3;4,5;6,7}"
+EVAL_BASE_PORT="${EVAL_BASE_PORT:-8700}"
+EVAL_PER_BENCHMARK="${EVAL_PER_BENCHMARK:-32}"
+EVAL_MAX_TOKENS="${EVAL_MAX_TOKENS:-4096}"
+EVAL_CONTEXT="${EVAL_CONTEXT:-8192}"
+EVAL_MEMORY="${EVAL_MEMORY:-0.80}"
+EVAL_PRESENCE_PENALTY="${EVAL_PRESENCE_PENALTY:-0}"
+EVAL_REASONING_EFFORT="${EVAL_REASONING_EFFORT:-xhigh}"

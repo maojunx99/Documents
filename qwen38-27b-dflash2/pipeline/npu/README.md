@@ -60,6 +60,8 @@ vi config.local.npu.sh
 
 ## 4. 运行
 
+### 一键运行
+
 先查看配置与命令，再用128条原始对话、最多2次更新验证全流程：
 
 ```bash
@@ -76,6 +78,20 @@ bash examples/npu/04_run.sh
 可用`--config /path/to/config.sh`指定另一份配置，`--smoke --dry-run`仅展示小规模计划。默认自动创建带时间戳的新任务目录；固定`RUN_DIR`时须保证它不存在。完整流程会依次执行预检、重生成、停止生成服务、预处理、教师/训练、每轮验证/保存、实际回载和清理。需要后台运行时用tmux或现有作业系统承载。
 
 成功标志是`status.json`的`stage=completed`，且`COMPLETION_VERIFICATION.json`中`passed=true`。失败查看`failure.json`、`stage_processes/*.log`、`audit/failure_rank*.json`和`cleanup_summary.json`。不要覆盖失败目录或自动重启训练。结果保留到主机挂载目录；五轮检查点需另留约每轮12GiB及数据/缓存空间。
+
+### 分阶段运行
+
+需要分别执行预检、重生成、预处理、教师/训练和真实推理评测时，使用[分阶段说明](STAGES.md)。这些脚本共用`config.local.npu.sh`；一键入口仍保留。
+
+```bash
+bash examples/npu/stages/01_preflight.sh
+bash examples/npu/stages/02_regenerate.sh
+bash examples/npu/stages/03_prepare.sh
+bash examples/npu/stages/04_train.sh
+bash examples/npu/stages/05_evaluate.sh
+```
+
+先在配置中填写固定的新`RUN_DIR`；评测还需填写`EVAL_CASES`和支持DFlash2的`EVAL_PYTHON`。训练阶段保留每轮原生验证与回载检查；第5步另跑T=0/T=1真实推理五基准。
 
 ## 验证范围与参考
 

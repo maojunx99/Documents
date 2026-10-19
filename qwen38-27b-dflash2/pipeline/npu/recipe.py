@@ -76,6 +76,20 @@ def parser():
     p.add_argument('--hidden-cache', type=Path)
     p.add_argument('--stage-timeout', type=int, default=86400)
     p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--stage', choices=['all', 'preflight', 'regenerate', 'prepare', 'train', 'evaluate'], default='all')
+    p.add_argument('--eval-cases', type=Path)
+    p.add_argument('--eval-output', type=Path, help='New result directory; default creates a fresh evaluation under RUN_DIR')
+    p.add_argument('--eval-checkpoint', type=Path)
+    p.add_argument('--eval-reference', type=Path)
+    p.add_argument('--eval-python', help='Optional separate DFlash2-capable inference environment')
+    p.add_argument('--eval-groups', default='0,1;2,3;4,5;6,7')
+    p.add_argument('--eval-base-port', type=int, default=8700)
+    p.add_argument('--eval-per-benchmark', type=int, default=32)
+    p.add_argument('--eval-max-tokens', type=int, default=4096)
+    p.add_argument('--eval-max-model-len', type=int, default=8192)
+    p.add_argument('--eval-memory', type=float, default=.8)
+    p.add_argument('--eval-presence-penalty', type=float, default=0.)
+    p.add_argument('--eval-reasoning-effort', default='xhigh')
     return p
 
 

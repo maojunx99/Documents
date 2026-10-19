@@ -48,6 +48,9 @@ def protected_files(source):
 
 def main():
     a=parser().parse_args();resolved=validate(a);commands=command_plan(a,resolved)
+    if a.stage != 'all':
+        from npu.stages import execute
+        return execute(a, resolved, commands)
     serial={k:str(v) if isinstance(v,Path) else [str(x) for x in v] if isinstance(v,list) else v for k,v in vars(a).items()}
     if a.dry_run:
         print(json.dumps({'config':serial,'rank_mesh':resolved['mesh'],'commands':commands,
