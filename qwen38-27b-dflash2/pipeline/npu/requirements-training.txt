@@ -1,0 +1,14 @@
+# Supplementary Python dependencies for the documented vLLM-Ascend container.
+# These versions were present in the validated NPU environment.
+# This is not a complete cross-platform lock file. Keep the container's matched
+# torch/torch-npu/vllm/vllm-ascend/triton-ascend/numpy stack via -c base-stack.txt.
+# Speculators and hs-connectors are loaded from the bundled source snapshots;
+# do not install their archived egg-info/requires.txt or replace them from PyPI.
+transformers==5.14.1
+datasets==5.0.1
+pyarrow==25.0.1
+loguru==0.7.3
+pydantic-settings==2.15.0
+rich==15.0.0
+typer==0.27.2
+aiofiles==25.1.0

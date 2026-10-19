@@ -30,6 +30,7 @@ gpu/
 npu/
   run_pipeline.py            重生成→prepare→教师→x×FSDPy→验证/保存/回载→清理
   recipe.py                  模型/拓扑配置检查和完整命令计划
+  requirements-training.txt 官方NPU镜像上补充的训练依赖
   source/                    成功FSDP4流程的独立pinned源码及NPU适配
   scripts/                   选1万条、预检、FSDP训练、回载检查与归档
   draft_config.json          显式草稿结构
@@ -45,7 +46,7 @@ check_bundle.py              无设备的静态与文件完整性检查
 | GPU训练 | PyTorch 2.13.0、vLLM 0.29.0、Transformers 5.16.1、hs-connectors 0.7.1a0 |
 | NPU训练 | PyTorch 2.10.0＋torch_npu 2.10.0.post4、Transformers 5.14.1、vLLM 0.26.0、vllm-ascend `155f68974`、CANN 9.1.0 |
 
-完整包版本在`gpu/environment-recorded.json`和`npu/environment-recorded.json`，它们是运行记录，不是可跨平台直接安装的requirements锁文件。源码的依赖描述和许可证也随各快照保留。运行入口优先使用快照的`PYTHONPATH`，其余第三方依赖从选定的Python环境提供；其中需要已经安装的`speculators`发行元数据。
+完整包版本在`gpu/environment-recorded.json`和`npu/environment-recorded.json`，它们是运行记录，不是可跨平台直接安装的requirements锁文件。Speculators、hs-connectors源码、对应发行元数据及许可证随快照保留，运行入口优先通过`PYTHONPATH`加载；其余第三方依赖从选定的Python环境提供。无需另找旧训练仓库或安装PyPI最新版Speculators。
 
 需要准备：
 
@@ -55,7 +56,222 @@ check_bundle.py              无设备的静态与文件完整性检查
 
 以下命令均从`pipeline/`目录执行。`PY`为已经配置好对应设备环境的Python。
 
-### NPU推荐入口：修改变量后一次启动
+### 1.1 NPU从新机器开始：容器→依赖→参数→运行
+
+以下以**910B/A2、单机8卡**为例。主机需事先安装匹配的Ascend驱动/固件及Docker，并准备完整目标权重和原始问题JSONL。已在253的既有容器中验证完整管线；下面的**官方干净镜像部署路径尚未单独完成端到端验证**，在新环境上应先跑第4步的小规模检查。镜像版本不能与其它release的torch/CANN随意混装。
+
+#### 第1步：在主机启动官方容器
+
+官方提供A2镜像`quay.io/ascend/vllm-ascend:v0.26.0rc2`；A3需选择对应`-a3`镜像，不能仅根据卡数判断系列。可参照[官方镜像使用说明](https://docs.vllm.ai/projects/ascend/en/v0.26.0rc1/tutorials/models/DeepSeek-V4-Flash.html)及[该版本Dockerfile](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc2/Dockerfile)。该镜像包含CANN、PyTorch/TorchNPU、vLLM/vLLM-Ascend和Triton Ascend；主机驱动不由本仓库安装。
+
+在**主机Bash**中修改路径和卡号后执行：
+
+```bash
+npu-smi info
+
+export IMAGE=quay.io/ascend/vllm-ascend:v0.26.0rc2
+export WORK_ROOT=/data/dflash2_workspace
+export MODEL_ROOT=/data/models
+export PROMPT_ROOT=/data/dflash2_prompts
+export RUN_ROOT=/data/dflash2_runs
+export NPU_IDS=0,1,2,3,4,5,6,7
+mkdir -p "$WORK_ROOT" "$PROMPT_ROOT" "$RUN_ROOT"
+test -d "$MODEL_ROOT" || exit 1  # 此目录应已放好完整模型，例如Qwen3.8-27B/
+
+device_args=()
+IFS=',' read -r -a npu_ids <<< "$NPU_IDS"
+for card in "${npu_ids[@]}"; do
+  test -c "/dev/davinci${card}" || exit 1
+  device_args+=(--device "/dev/davinci${card}")
+done
+mount_args=()
+if [[ -f /etc/hccn.conf ]]; then
+  mount_args+=(-v /etc/hccn.conf:/etc/hccn.conf:ro)
+fi
+
+docker pull "$IMAGE"
+docker run -it --name dflash2-27b-train \
+  --network host --shm-size=128g --ulimit memlock=-1 \
+  "${device_args[@]}" \
+  --device /dev/davinci_manager --device /dev/devmm_svm --device /dev/hisi_hdc \
+  -v /usr/local/Ascend/driver:/usr/local/Ascend/driver:ro \
+  -v /usr/local/dcmi:/usr/local/dcmi:ro \
+  -v /usr/local/bin/npu-smi:/usr/local/bin/npu-smi:ro \
+  -v /etc/ascend_install.info:/etc/ascend_install.info:ro \
+  "${mount_args[@]}" \
+  -v "$WORK_ROOT:/workspace" \
+  -v "$MODEL_ROOT:/models:ro" \
+  -v "$PROMPT_ROOT:/data/prompts:ro" \
+  -v "$RUN_ROOT:/data/runs" \
+  -w /workspace "$IMAGE" bash
+```
+
+容器使用的卡必须空闲。16卡机器可把`NPU_IDS`改成实际需要的卡列表；后面的训练/教师分组也要一起修改。`/workspace`和`/data/runs`已挂到主机，退出容器后代码、虚拟环境和结果仍保留。若容器已经创建，后续用`docker start -ai dflash2-27b-train`重新进入，不要重复创建同名容器。`128g`是此示例的共享内存上限，应结合主机内存、workers和缓存规模设置。
+
+#### 第2步：在容器内获取代码、安装训练依赖
+
+以下命令均在**容器内Bash**执行：
+
+```bash
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+cd /workspace
+git clone https://github.com/maojunx99/Documents.git
+cd /workspace/Documents/qwen38-27b-dflash2/pipeline
+export PIPELINE_ROOT="$PWD"
+
+# 继承镜像中已匹配的计算栈，只在独立环境补充训练依赖。
+python3 -m venv --system-site-packages /workspace/venvs/dflash2
+source /workspace/venvs/dflash2/bin/activate
+export PYTHON="$VIRTUAL_ENV/bin/python"
+export PY="$PYTHON"
+mkdir -p /workspace/environment_records
+
+# 记录并锁住镜像的基础包；解析新增依赖时不允许替换这些包。
+python - <<'PY'
+import importlib.metadata as md
+import json
+from pathlib import Path
+
+names = ["torch", "torch-npu", "torchvision", "torchaudio", "vllm",
+         "vllm-ascend", "triton-ascend", "numpy"]
+versions = {name: md.version(name) for name in names}
+assert versions["torch"].split("+")[0] == "2.10.0", versions
+assert versions["torch-npu"] == "2.10.0.post4", versions
+assert versions["vllm"].split("+")[0] == "0.26.0", versions
+assert versions["triton-ascend"] == "3.2.2", versions
+out = Path("/workspace/environment_records")
+(out / "base-stack.txt").write_text(
+    "".join(f"{name}=={version}\n" for name, version in versions.items()))
+(out / "base-stack.json").write_text(json.dumps(versions, indent=2))
+print(json.dumps(versions, indent=2))
+PY
+
+python -m pip install \
+  -c /workspace/environment_records/base-stack.txt \
+  -r npu/requirements-training.txt
+```
+
+`requirements-training.txt`只列新增训练依赖，版本来自已验证环境；它不替代官方计算栈的完整锁定。如果pip报告与基础包冲突，应核对镜像版本和冲突原因，不要删除基础约束后升级整套torch/vLLM。
+
+**不执行`pip install speculators`、`pip install -e npu/source`或安装归档中的`egg-info/requires.txt`。**入口分别加载`npu/source`与`regeneration/source`的适配源码，包中也包含所需发行元数据；旧归档依赖描述含来源路径，不能当作新机器的安装清单。也不要安装通用CUDA版Triton覆盖Triton Ascend。
+
+安装后检查当前解释器、NPU与两个源码快照：
+
+```bash
+python - <<'PY'
+import importlib.metadata as md
+import sys
+import torch
+import torch_npu
+import vllm
+import vllm_ascend
+import triton
+
+assert torch.npu.is_available()
+print("Python:", sys.executable)
+for name in ["torch", "torch-npu", "vllm", "vllm-ascend", "triton-ascend",
+             "transformers", "datasets", "pyarrow"]:
+    print(name, md.version(name))
+PY
+
+for snapshot in npu/source regeneration/source; do
+  PYTHONPATH="$PWD/$snapshot/src:$PWD/$snapshot/hs_connectors/src:${PYTHONPATH:-}" \
+  python -c 'import speculators, hs_connectors; print(speculators.__file__); print(hs_connectors.__file__)'
+done
+python -m pip freeze > /workspace/environment_records/python-freeze.txt
+python check_bundle.py
+```
+
+两个快照检查应分别打印本仓库下的源码路径。当前已验证的vLLM-Ascend是提交`155f68974`对应的开发安装，与官方镜像tag并非逐字节相同；上述版本检查和import成功后，仍需实际算子、通信及第4步的完整smoke验证，才能确认新环境可用。
+
+#### 第3步：修改目标模型、数据、并行和采样参数
+
+原始JSONL放在主机的`PROMPT_ROOT`，容器内对应`/data/prompts`。每行包含`messages`或`conversations`，例如：
+
+```json
+{"id":"example-001","messages":[{"role":"user","content":"Explain how binary search works."}]}
+```
+
+若已有assistant回答，重生成阶段会重新生成它们。纯`input_ids/loss_mask`文件不是重生成题源；只有经过同一target身份核验的生成结果，才可以通过`REGENERATED_DIR`显式跳过重生成。
+
+打开`examples/train/npu_dflash2_27b.sh`，将顶部`INPUT_FILES`数组改成实际题源，例如：
+
+```bash
+INPUT_FILES=(/data/prompts/open_perfectblend.jsonl /data/prompts/nemotron_v2.jsonl)
+```
+
+其它顶部变量可以修改默认值，也可以用环境变量覆盖。下面是**8卡机器的4张训练卡＋TP2教师**配置：
+
+```bash
+export PYTHON=/workspace/venvs/dflash2/bin/python
+export TARGET_MODEL=/models/Qwen3.8-27B
+# 相同结构的其它权重可改为 /models/Qwen3.6-27B
+export FSDP_REPLICAS=1
+export FSDP_SHARD_SIZE=4
+export TRAIN_DEVICES=0,1,2,3
+export TEACHER_TP_GROUPS='4,5'
+export REGEN_TP_GROUPS='0,1;2,3;4,5;6,7'
+export SAMPLE_MAX_LENGTH=4096 PACKED_TOKENS=4096 MAX_ANCHORS=512
+export TEMPERATURE=1.0 TOP_P=0.95 TOP_K=20 PRESENCE_PENALTY=1.5
+export REASONING_EFFORT=xhigh
+export REGENERATED_DIR=
+```
+
+这里重生成可先用全部8卡，生成服务退出后再把0..3用于训练、4/5用于在线教师。16卡机器可以配置2×FSDP4（8张训练卡）并给教师独立分配2/4/8张卡；配置含义和完整参数表见下一小节。改变x/y不会自动调整学习率或保证相同训练轨迹。
+
+#### 第4步：先做小规模验证，再启动正式训练
+
+第一次在新环境运行时，先从自己的原始题源选128条，避免为了测试入口就重生成整套大数据。下面仅写新的smoke输入，不修改原文件；请先把`RAW_SOURCE`改成实际文件：
+
+```bash
+export RAW_SOURCE=/data/prompts/open_perfectblend.jsonl
+export SMOKE_INPUT_DIR="/data/runs/smoke_inputs_$(date +%Y%m%d_%H%M%S)"
+python - <<'PY'
+import itertools
+import json
+import os
+from pathlib import Path
+
+out = Path(os.environ["SMOKE_INPUT_DIR"])
+out.mkdir(parents=True, exist_ok=False)
+with Path(os.environ["RAW_SOURCE"]).open(encoding="utf-8") as src:
+    rows = list(itertools.islice((json.loads(line) for line in src if line.strip()), 128))
+assert len(rows) == 128, "请选择至少有128条有效对话的原始题源"
+with (out / "prompts128.jsonl").open("x", encoding="utf-8") as dst:
+    for row in rows:
+        dst.write(json.dumps(row, ensure_ascii=False) + "\n")
+PY
+
+RUN_DIR="/data/runs/dryrun_$(date +%Y%m%d_%H%M%S)" \
+  bash examples/train/npu_dflash2_27b.sh \
+  --input "$SMOKE_INPUT_DIR/prompts128.jsonl" --dry-run
+
+RUN_DIR="/data/runs/smoke_$(date +%Y%m%d_%H%M%S)" \
+MAX_STEPS=2 EPOCHS=2 TRAIN_RATIO=0.8 WARMUP_RATIO=0 \
+GENERATION_MAX_TOKENS=128 GENERATION_CONCURRENCY=4 \
+  bash examples/train/npu_dflash2_27b.sh \
+  --input "$SMOKE_INPUT_DIR/prompts128.jsonl"
+```
+
+末尾的`--input`会覆盖脚本顶部的题源列表，仅用于本次128条检查；`MAX_STEPS=2`限制训练累计更新次数。重生成上限128、80/20划分及warmup0都是smoke设置。根据样本长度，每个小epoch可能包含不同步数，不能把这次检查当作正式训练。入口会先做NPU算子、activation checkpointing、CPU保存和x×y通信/梯度预检，再继续完整流程。
+
+检查smoke运行目录中的`status.json`为`completed`，且`COMPLETION_VERIFICATION.json`中`passed=true`；保留`environment_records`和该运行目录的配置、日志及验证收据。失败时先查看`failure.json`、`stage_processes/*.log`、`audit/failure_rank*.json`和`cleanup_summary.json`，不要复用旧目录覆盖重跑。
+
+smoke通过后，使用**新的输出目录**启动正式五轮训练，不带上面的`--input`覆盖：
+
+```bash
+RUN_DIR="/data/runs/qwen27b_full_$(date +%Y%m%d_%H%M%S)" \
+MAX_STEPS= EPOCHS=5 TRAIN_RATIO=0.99 WARMUP_RATIO=0.04 \
+GENERATION_MAX_TOKENS=8192 GENERATION_CONCURRENCY=34 \
+STAGE_TIMEOUT=604800 \
+  bash examples/train/npu_dflash2_27b.sh
+```
+
+该命令使用顶部`INPUT_FILES`的全部题源。`STAGE_TIMEOUT=604800`为每个阶段7天的示例上限，应按实际数据量和预算调整；输出长度、采样、并发、数据量及卡数会显著影响总耗时。模型检查点和日志保存在挂到主机的`RUN_DIR`，前台Ctrl+C会进入本次owned资源清理。若需要后台运行，另用tmux或已有作业系统承载前台命令。
+
+### 1.2 一键入口的完整参数与验证范围
 
 在`examples/train/npu_dflash2_27b.sh`顶部填写实际路径和设备分配，然后执行：
 
