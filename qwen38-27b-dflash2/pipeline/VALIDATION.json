@@ -136,5 +136,19 @@
     "Native BF16 serialization rounds model/AdamW state and has no RNG snapshot; not lossless FP32 recovery.",
     "One host. Training cards and live teacher cards must be disjoint.",
     "Only 2xFSDP4 has this full27B one-invocation test; other topologies need capacity/real-workload validation."
-  ]
+  ],
+  "public_npu_step_scripts": {
+    "date": "2026-10-19",
+    "hardware_retest": false,
+    "scope": "Separate platform docs and scripted container/dependency/configuration/run steps; existing trainer unchanged.",
+    "bash_scripts_syntax_checked": 6,
+    "cpu_contract_tests": [
+      "Configuration is created without overwriting an existing file",
+      "Container/install dry-run has no Docker, pip or filesystem side effects",
+      "Smoke budgets do not persist into full training and dry-run creates no data",
+      "Topology/sampling/reused-shard parameters and existing-run guards propagate",
+      "128-row selection preserves raw inputs and rejects short input or overwrite"
+    ],
+    "official_clean_image_end_to_end_verified": false
+  }
 }

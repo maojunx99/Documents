@@ -29,3 +29,9 @@ NPU历史完整验证：10000条、FSDP4、512 anchors、packed4096、各rank909
 通用并行包装在运行时设置replicate×shard的DeviceMesh、非重入activation checkpointing，以及记录真实更新/有限梯度/复制组参数与AdamW状态。损失、采样器、每轮训练和验证仍调用native实现；有界`max_steps`的外层循环在累计上限后退出，不会意外继续下一轮。检查点仍使用原生BF16格式，实际回载不代表FP32无损恢复。
 
 重生成入口新增可配置采样参数与目标文件身份，按conversation primary ID校验完整覆盖，允许多轮/工具对话产生多条监督记录。进程清理支持native launcher执行`exec`后argv变化，但仍核对内核starttime、私有session和清理时的当前argv，并通过实际Linux进程测试验证不影响无关进程。新的硬件测试均使用独立新运行目录，不覆盖既有结果、模型或原数据；具体预算与结果以`VALIDATION.json`为准。
+
+## 分平台文档与NPU分步入口（2026-10-19）
+
+运行说明拆为`gpu/README.md`和`npu/README.md`，主README只保留平台导航，旧1万条入口移到`npu/LEGACY_FSDP4.md`。新增`examples/npu/01_container.sh`至`04_run.sh`，分别负责容器、依赖、独立配置及运行；训练步骤仍委托已有的统一管线，不改损失、训练循环或原生源码快照。配置模板默认采用8卡主机上的FSDP4＋TP2教师布局，x/y与卡号可编辑。
+
+安装步骤锁定镜像计算栈、补充训练依赖并检查源码加载；正式与smoke调用读取同一配置，小数据验证只在当前子进程覆盖预算。新增脚本通过Bash语法、无设备命令规划、配置/输出防覆盖、采样/拓扑传递及输入保护检查。没有新增硬件训练验证；官方干净镜像的端到端部署仍待在目标机器上验证。

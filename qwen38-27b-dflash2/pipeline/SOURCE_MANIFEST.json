@@ -500,8 +500,8 @@
     "npu/source/src/speculators.egg-info/top_level.txt": "4cf10bf6315df45813d28bf7bc488481e44dc2f20f46ff6afc0f1389825854e9",
     "npu/SOURCE_MANIFEST.json": "6507a69a03f8455583da3deab2e90177044d15c99ce5eadbb6072f57c1b8f3fc",
     "npu/verify_run.py": "99c4e39ad11752c2d36b3dd55380055f0a815a0a9e5c0dc1de4ae4dfeeb9e6b3",
-    "PROVENANCE.md": "0e0b6c8e3d2082d483bb3b54820e69a02de458f443212854d0d061dfb186cee3",
-    "README.md": "8a6cb5ca61ea3512c7e2df93f2ead20c95cce5b22ad48a1bc6ac9cfbfb3d3f23",
+    "PROVENANCE.md": "c44538874b34ce825ad0eb5bd02cac27d3e483934e28eaa38894ce4e72fdc5ed",
+    "README.md": "967b8890cf17a3fae63717a81aa1db6ffd115a8e07214272ad34a132019423e6",
     "regeneration/reference/lane_worker_pb.sh": "5a9da3e6c61081ec8a2cbda6e9f858ba21033da5fd24eda624119392792bec57",
     "regeneration/regenerate.py": "fb7113be18cb45e6247b11ac67752f1415a5a42f56355894ee4f452cfa7ecaa5",
     "regeneration/serve.py": "05a547bef87d3877ae6b17b718734ccf2d4c21bb354d0f20d862fcb7d3b93d27",
@@ -661,6 +661,18 @@
     "regeneration/verify_outputs.py": "b13d4ed7c1419fb0e454e24c62134ec9e8e8f81a6c868f896bcc4c95eebcc8b3",
     "tests/test_npu_pipeline.py": "d909945a836a53f659e5f90ad9af88fbaa0beefd5ef741c6b174b285b0db4cb5",
     "tests/test_owned_linux.py": "21c0af64007a78f1afe699b71ca70c51490c7a7528e4ce07b6cb8259b6dc4ffc",
-    "VALIDATION.json": "71a3b3731906b4c51845fb6ad3da97033e708679237a46be4d9720bfe750de44"
+    "VALIDATION.json": "3c42865fdfbc19df874ead0cbbdbc6b09957656694fbbc0f5bd49a954ea0752f",
+    "gpu/README.md": "b28e495d171616671ab05f9e0bc1987c5fe59eb4b868eb714b235411ab8c2073",
+    "npu/README.md": "aab4fc2733e1fa4b4a36d04383605aa3b126c2d163a98f139a9fea146d1446cf",
+    "npu/LEGACY_FSDP4.md": "ee556b792e88c14013ed6943177dcfa35beadcce1fafb195c40f0b28a35fcfa2",
+    "npu/setup_environment.py": "be7a303e58d72ec315043e4655dbaa269b2506de1489dddda9cdf2883f608681",
+    "npu/prepare_smoke_inputs.py": "51d70f28af61247c20dd497efb7f47b933eb1d093b68abcc5362f5bd9e4ce744",
+    "tests/test_npu_steps.py": "8f65cbfc1a9bf918b4055ea1f52ac4cf42daa37cf0e33d86844f983f77b17554",
+    "examples/npu/01_container.sh": "a46c808c1bec87f2fb206a28a034f452c35d7d8cf2da1daa58b2ffd58ad734fb",
+    "examples/npu/02_install.sh": "b85b5c6141653b16ccbdf2a424e3be348ee02f97833b840359566dd0c72e08f6",
+    "examples/npu/03_configure.sh": "62e2e21dc4e5f558f95208efc83addcad69719bf4bfc9523d4e953985385a993",
+    "examples/npu/04_run.sh": "7f7d266f6c57980ed974badb5b8b2c0ee1266e7937dc040deee8a1c946fd6baa",
+    "examples/npu/_common.sh": "08a0f96e6a515b891ed61084f8411c924229ae612d892442f2d2bb06656b74d2",
+    "examples/npu/config.example.sh": "15f5e8f143ce10ba098329ec289012b2c44c7c5e6b84ce137e555c0d2076e469"
   }
 }
