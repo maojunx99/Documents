@@ -325,7 +325,7 @@
     "npu/environment-recorded.json": "09a9e3f23d58007af1f979add4abd92cca745886c26f4c9c1b0bd005bbff989c",
     "npu/recipe.py": "6eb25901d3aad6302af22e807865c68cd3075a620afe15b856a8b37a3deec266",
     "npu/requirements-training.txt": "873ab9fbf0bb6e0e9acfa35e16c41a77a60fe9d47a991418f778cc9efdeaaf01",
-    "npu/run_pipeline.py": "617de4595d2dbd14d9189dd10472b5573a9902f3e48ef3af45a3abc27706db18",
+    "npu/run_pipeline.py": "b076941f9eaad74eef94cb7d660425bce49781bc905d47375cb9055630415928",
     "npu/scripts/archive_workflow.py": "02a1a8aa3e0d7f0cb94a7e1b9b42ec0df8b035de3d68cffa73ab95fa1ea8169c",
     "npu/scripts/cpu_checkpoint.py": "d98391495f666fed8393c010957b07027982f3e98841c044fb694e43da3f6f4f",
     "npu/scripts/finalize_after_exit.py": "7f2192e61f813ca9b979e691592ae5923358f95faad93baf643798ecc6c0b8e3",
@@ -500,7 +500,7 @@
     "npu/source/src/speculators.egg-info/top_level.txt": "4cf10bf6315df45813d28bf7bc488481e44dc2f20f46ff6afc0f1389825854e9",
     "npu/SOURCE_MANIFEST.json": "6507a69a03f8455583da3deab2e90177044d15c99ce5eadbb6072f57c1b8f3fc",
     "npu/verify_run.py": "99c4e39ad11752c2d36b3dd55380055f0a815a0a9e5c0dc1de4ae4dfeeb9e6b3",
-    "PROVENANCE.md": "ced96f818d09324f51b11e4a156dfe519d9d2ab81e6344b04da06815acc402f5",
+    "PROVENANCE.md": "0789e5433b910afaab7fda1bbc30b0e96ab79a685e473391cd1d263025695298",
     "README.md": "5ad71765ca5d472b296ee73cf5b6dd9e78927007538859a5c75d0f9986793e1b",
     "regeneration/reference/lane_worker_pb.sh": "5a9da3e6c61081ec8a2cbda6e9f858ba21033da5fd24eda624119392792bec57",
     "regeneration/regenerate.py": "fb7113be18cb45e6247b11ac67752f1415a5a42f56355894ee4f452cfa7ecaa5",
@@ -674,7 +674,7 @@
     "examples/npu/04_run.sh": "7f7d266f6c57980ed974badb5b8b2c0ee1266e7937dc040deee8a1c946fd6baa",
     "examples/npu/_common.sh": "08a0f96e6a515b891ed61084f8411c924229ae612d892442f2d2bb06656b74d2",
     "examples/npu/config.example.sh": "cb1510c17015c79e12307ccce49337e8b2f4b18e287b0395882c15e0b06de195",
-    "npu/stages.py": "baeed0d341c29028a4d1be26960e8a6329676206e6fe1b990c37f34275b4819a",
+    "npu/stages.py": "8451605696cf25b8136f860e83d7efe7cf08ba9720c4304a6986c6f9163d3bd4",
     "npu/STAGES.md": "4e6fc389537695be7ab28def6800234e3c2cb54c5b583c7778805ed89315b97f",
     "tests/test_npu_stages.py": "577e50b0ada929237c51f18b53d395e5da75732b6fae35826dbca6734c6f7a43",
     "tests/test_evaluation.py": "59267b145903883f9f703a10a849a05662b0207d78e0eca6af81a93de4fbd7b8",
@@ -689,6 +689,7 @@
     "examples/npu/stages/03_prepare.sh": "9fea14433481cf587534de0ea3f019689471a7c023fc119e5ac2222c353f58e8",
     "examples/npu/stages/04_train.sh": "998f23846850ccc5c20f27e576d8e1cadb6fc457f4fb7af81e09dc45ae301452",
     "examples/npu/stages/05_evaluate.sh": "a7f9741a25e7dc826f64cca0230c44960ea6bb2727cfabd4af30e0cdd74aaaa8",
-    "examples/npu/stages/_stage.sh": "1a4563c0126c6a8917a859b58e4b794ddc1b22243891ee323c9870e43c62e2ec"
+    "examples/npu/stages/_stage.sh": "1a4563c0126c6a8917a859b58e4b794ddc1b22243891ee323c9870e43c62e2ec",
+    "tests/test_npu_prepare_audit.py": "5d7d6a0864153b203d769d0502d0e6f5c91dd5448d54cf9c5f9f2978271acf67"
   }
 }

@@ -218,7 +218,9 @@ class Stage:
     def prepare(self):
         self.checked('prepare', self.commands['prepare'])
         from datasets import load_from_disk
-        ds = load_from_disk(str(self.run / 'prepared'))
+        # Saved datasets retain Torch formatting; audit integer lists to avoid
+        # billions of per-token Tensor scalar operations on full-size datasets.
+        ds = load_from_disk(str(self.run / 'prepared')).with_format(None)
         lengths, supervised = [], 0
         for row in ds:
             ids, mask = row['input_ids'], row['loss_mask']

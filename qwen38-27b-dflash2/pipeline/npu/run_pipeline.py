@@ -172,7 +172,8 @@ def main():
         stage('preparing')
         checked('prepare',commands['prepare'])
         from datasets import load_from_disk
-        ds=load_from_disk(str(run/'prepared'))
+        # Audit the same values as integer lists, avoiding Tensor scalar loops.
+        ds=load_from_disk(str(run/'prepared')).with_format(None)
         lengths=[];supervised=0
         for row in ds:
             ids=row['input_ids'];mask=row['loss_mask']
