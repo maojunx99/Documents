@@ -21,6 +21,8 @@ def main():
     ap.add_argument('--python', default=sys.executable)
     ap.add_argument('--base-port', type=int, default=8500)
     ap.add_argument('--max-model-len', type=int, default=32768)
+    ap.add_argument('--max-num-seqs', type=int, default=64)
+    ap.add_argument('--memory-utilization', type=float, default=.85)
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
     groups = [[int(x) for x in group.split(',')] for group in args.device_groups.split(';')]
@@ -28,8 +30,8 @@ def main():
     for i, devices in enumerate(groups):
         cmd = [args.python, '-m', 'vllm.entrypoints.cli.main', 'serve', args.model,
                '--tensor-parallel-size', str(len(devices)), '--dtype', 'bfloat16',
-               '--max-model-len', str(args.max_model_len), '--max-num-seqs', '64',
-               '--gpu-memory-utilization', '.85', '--enforce-eager', '--port', str(args.base_port + i)]
+               '--max-model-len', str(args.max_model_len), '--max-num-seqs', str(args.max_num_seqs),
+               '--gpu-memory-utilization', str(args.memory_utilization), '--enforce-eager', '--port', str(args.base_port + i)]
         commands.append(cmd)
     if args.dry_run:
         print(json.dumps(commands, indent=2))

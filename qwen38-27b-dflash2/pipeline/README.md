@@ -5,17 +5,20 @@
 | 路线 | 已有运行验证 | 数据与主要配置 | 入口 |
 |---|---|---|---|
 | GPU基础训练 | H200上完成基础训练 | 4张训练卡DDP4＋4个TP1教师；单样本4096、packed8192、1024 anchors；5轮 | `gpu/run_pipeline.py` |
-| NPU完整流程 | Ascend 910B2C上完成1万条、1轮；每rank 909步，训练/验证/实际模型及优化器回载通过 | FSDP4＋一个TP2教师；单样本/packed4096、512 anchors | `npu/scripts/run_pipeline_fsdp.py` |
+| NPU可配置完整流程 | 支持回答重生成直至训练、验证、检查点与清理；硬件验证范围见下文 | x×FSDPy＋独立TP教师；默认单样本/packed4096、512 anchors | `examples/train/npu_dflash2_27b.sh` |
+| NPU原1万条流程 | Ascend 910B2C上完成1万条、1轮；每rank 909步，训练/验证/实际模型及优化器回载通过 | FSDP4＋一个TP2教师；单样本/packed4096、512 anchors | `npu/scripts/run_pipeline_fsdp.py` |
 | GPU后续实验 | 产生文章最终评测权重的补充数据训练实现 | 既有模型起点、DDP2、4次梯度累积、FP32 master/AdamW；分布匹配目标 | `gpu/continuation/` |
 
 GPU基础训练与NPU流程验证使用同一类五层草稿结构、完整248320词表和CE/TV目标，但数据预算、packed长度、anchors、并行方式不同。NPU这次验证的是流程与容量，不代表完成了GPU五轮训练的数值复现。
 
-本次公开整理补上了原NPU归档对旧目录的依赖，并提供可配置入口。**公开入口在整理时进行了语法、命令规划、依赖与CPU检查；没有为此次上传重新启动GPU/NPU训练。**原运行证据与修改范围见[PROVENANCE.md](PROVENANCE.md)。
+本目录在原归档上补齐依赖，并提供统一NPU入口。原GPU公开编排层仅做过静态与CPU检查；NPU可配置入口的独立验证范围记录在`VALIDATION.json`，不把流程测试当作长程收敛或推理质量验证。原实现与修改范围见[PROVENANCE.md](PROVENANCE.md)。
 
 ## 目录
 
 ```text
 common/managed.py            进程身份、命令记录和仅清理自身子进程
+examples/train/
+  npu_dflash2_27b.sh         修改顶部变量后，一条命令运行NPU完整流程
 regeneration/                GPU/NPU共用的HTTP回答重采样客户端与服务入口
   source/                    NPU实际重采样环境的Speculators源码快照
   reference/lane_worker_pb.sh 原任务队列脚本，供核对历史参数
@@ -25,6 +28,8 @@ gpu/
   reference/                 原GPU分阶段脚本，已隐藏机器私有路径
   continuation/              最终模型后续实验代码与协议，不属于从零训练入口
 npu/
+  run_pipeline.py            重生成→prepare→教师→x×FSDPy→验证/保存/回载→清理
+  recipe.py                  模型/拓扑配置检查和完整命令计划
   source/                    成功FSDP4流程的独立pinned源码及NPU适配
   scripts/                   选1万条、预检、FSDP训练、回载检查与归档
   draft_config.json          显式草稿结构
@@ -49,6 +54,64 @@ check_bundle.py              无设备的静态与文件完整性检查
 - 输出与hidden-state缓存的可写磁盘。新任务必须使用尚不存在的输出目录。
 
 以下命令均从`pipeline/`目录执行。`PY`为已经配置好对应设备环境的Python。
+
+### NPU推荐入口：修改变量后一次启动
+
+在`examples/train/npu_dflash2_27b.sh`顶部填写实际路径和设备分配，然后执行：
+
+```bash
+bash examples/train/npu_dflash2_27b.sh --dry-run  # 仅打印配置、rank mesh和各阶段命令
+bash examples/train/npu_dflash2_27b.sh            # 启动完整流程
+```
+
+入口依次完成：模型/tokenizer检查、真实NPU算子和通信预检、目标回答重生成、停止生成服务、原生预处理、启动hidden-state教师与路由、随机初始化草稿并训练、每轮验证与保存、实际回载检查、仅清理本次服务和独占缓存。默认使用所有传入题源，不再自动限为1万条；小规模测试请先准备选定的输入JSONL。
+
+主要可修改项均集中在同一个脚本顶部：
+
+| 变量 | 用途 / 默认值 |
+|---|---|
+| `TARGET_MODEL`、`INPUT_FILES`、`RUN_DIR` | 完整目标模型、原始对话文件列表、新运行目录 |
+| `FSDP_REPLICAS`、`FSDP_SHARD_SIZE`、`TRAIN_DEVICES` | x、y及x×y张训练卡；默认2×4、8..15 |
+| `REGEN_TP_GROUPS`、`TEACHER_TP_GROUPS` | 生成阶段及在线教师的TP分组；逗号组内、分号组间 |
+| `TEMPERATURE`、`TOP_P`、`TOP_K`、`PRESENCE_PENALTY` | 回答重生成参数；1.0 / .95 / 20 / 1.5 |
+| `REASONING_EFFORT`、`GENERATION_MAX_TOKENS` | xhigh / 8192；使用目标原生chat template，客户端不手工拼接system prompt |
+| `GENERATION_CONCURRENCY`、`GENERATION_CONTEXT`、`GENERATION_MEMORY` | 每生成服务的并发、上下文及显存预算 |
+| `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 4096 / 4096 / 512；anchors为每rank packed批次共享上限 |
+| `EPOCHS`、`LR`、`WARMUP_RATIO`、`SELECTOR_ALPHA` | 5 / 6e-4 / .04 / .1；其余损失与优化器参数也可修改 |
+| `MAX_STEPS` | 默认为空；可设为正整数做有界流程测试，表示全任务累计更新上限 |
+| `REGENERATED_DIR` | 可选；指定同一目标生成的已核验shards后跳过重生成 |
+| `STAGE_TIMEOUT` | 每个工作阶段的时间上限，默认86400秒；大规模重生成/多轮训练需按预算调大 |
+
+例如，仍在对应训练容器内，可用环境变量临时覆盖顶部默认值：
+
+```bash
+PYTHON=/path/to/venv/bin/python \
+TARGET_MODEL=/models/Qwen3.6-27B \
+RUN_DIR=/data/runs/qwen36_scratch_001 \
+FSDP_REPLICAS=2 FSDP_SHARD_SIZE=4 \
+TRAIN_DEVICES=8,9,10,11,12,13,14,15 \
+TEACHER_TP_GROUPS='2,3' \
+bash examples/train/npu_dflash2_27b.sh
+```
+
+`INPUT_FILES`是脚本顶部的Bash数组，需填写自己的题源文件。这个示例以现有27B结构为蓝本：更换成**相同结构的Qwen3.6-27B权重**时，主要修改`TARGET_MODEL`；预处理、生成服务、在线教师以及冻结的embedding/head都从该目标读取。入口检查hidden size、词表维度、特征层索引、tokenizer ID范围、mask ID往返和原生chat template；模型结构不同则需要明确修改`DRAFT_CONFIG`、`TARGET_LAYERS`、`MASK_TOKEN_ID`并重新验证，不能只改模型名。
+
+换目标权重后应重新生成回答和hidden states。默认全流程自动执行；显式复用旧回答时，要求其`REGENERATION_CONFIG.json`记录相同目标路径及未变化的模型文件身份。旧目录缺少该收据会拒绝复用，不会把其他模型的回答静默当作当前目标数据。原生模板本身可能根据`reasoning_effort=xhigh`渲染reasoning说明，实际token以当前target的模板输出为准。
+
+| 设置 | 训练卡数 | 含义 |
+|---|---:|---|
+| 1×FSDP4 | 4 | 一组4卡分片 |
+| 2×FSDP4 | 8 | 两组4卡分片；相同分片列之间做复制组同步 |
+| 2×FSDP2 | 4 | 两组2卡分片 |
+| 4×FSDP4 | 16 | 四组4卡分片 |
+
+`TRAIN_DEVICES`数量必须恰好等于x×y。这里每个训练rank都读取不同数据，实际数据并行大小是x×y；修改卡数会改变全局token预算、步数和训练轨迹，不能据此声称与原配方逐位相同。通信预检会在当前拓扑上比较全局批次梯度及检查点回载。
+
+2026-10-19已在910B2C验证本统一入口：128条原始问题→128条新回答→128条prepared记录；2×FSDP4、packed4096、512 anchors、完整词表，各rank2次真实更新，两个小规模epoch的验证与保存、最终模型/AdamW实际回载、复制组状态一致和owned清理通过。该测试将生成上限临时设为128、划分设为80/20、warmup设为0以验证更新与流程，**不是默认五轮配方的质量评测**。另有既有27B 2×FSDP4/20步验证；通用1×FSDP4与2×FSDP2完成了小模型全局梯度/通信/回载检查，不能据此保证所有x/y的完整27B显存容量。Qwen3.6-27B的切换已做命令与结构检查，尚未加载其真实权重运行。
+
+**在线教师还需要独立卡。**默认8张训练卡＋一个TP2教师，共10张；若机器只有8张卡，可以选择4张训练卡＋TP2教师，剩余卡另行分配。不能把“8卡训练”理解为已经包含教师。生成阶段与训练阶段顺序执行，生成卡可以重用；入口确认生成服务退出后才进入训练。
+
+输出中的`COMPLETION_VERIFICATION.json`且`passed=true`表示本次流程、更新计数、验证、回载和owned清理通过；它不代表serving接受长度评测。新目录不可覆盖、失败不自动重训；预检、生成和训练的独立日志、命令、身份与模型/源码清单都会保留。默认五轮保留各轮检查点，应另准备约每轮12GiB以及数据/缓存空间。原生BF16检查点仍不是FP32无损恢复。
 
 ## 2. 回答重采样：GPU和NPU均可使用
 

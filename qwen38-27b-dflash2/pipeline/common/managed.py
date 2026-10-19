@@ -35,9 +35,12 @@ def same(expected):
 def children_of(parent):
     """Snapshot descendants by PPID before cleanup; never discover by process name."""
     current = identity(parent['pid'])
-    if current and any(current[k] != parent[k] for k in ['starttime', 'pgid', 'cmdline']):
+    if current and any(current[k] != parent[k] for k in ['starttime', 'pgid', 'session']):
         return []  # Reused leader PID must never authorize cleaning a new session.
-    found = [parent]
+    # Native launch_vllm.py execs the vLLM CLI. A changed argv with the same
+    # kernel starttime/private session is that owned exec, not PID reuse.
+    # Snapshot its current argv here; same() still verifies that argv at signal time.
+    found = [current or parent]
     pending = {parent['pid']}
     candidates = [identity(int(p.name)) for p in Path('/proc').iterdir() if p.name.isdigit()]
     # start_new_session gives this invocation a private session. This also retains
@@ -146,3 +149,6 @@ def assert_free(backend, devices):
         for d in devices:
             if not re.search(r'No running processes found in NPU ' + str(d) + r'\s', text):
                 raise RuntimeError(f'NPU {d} is occupied or its idle state could not be verified')
+            health = re.search(r'\|\s*'+str(d)+r'\s+910\S*\s*\|\s*(\S+)', text)
+            if health and health[1] != 'OK':
+                raise RuntimeError(f'NPU {d} health is {health[1]}')

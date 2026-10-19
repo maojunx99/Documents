@@ -24,4 +24,8 @@ hs_connectors源码与包元数据随相应快照保留；各快照中的`LICENS
 
 NPU历史完整验证：10000条、FSDP4、512 anchors、packed4096、各rank909步，训练/原生验证/模型及优化器真实回载/owned退出通过。它不证明NPU和GPU数值完全等价，也不证明公开编排层已经再次通过完整硬件运行。
 
-本次上传只做代码获取、整理和CPU静态检查；没有启动训练、教师或生成服务，没有修改任何原运行目录、模型或数据。
+上述原始公开整理只做代码获取、整理和CPU静态检查。后续用户要求增加可配置的x×FSDPy和一键流程，另增加了`examples/train/npu_dflash2_27b.sh`、`npu/recipe.py`、`npu/run_pipeline.py`、通用并行预检/训练审计及独立完成检查；没有修改原训练实现快照。
+
+通用并行包装在运行时设置replicate×shard的DeviceMesh、非重入activation checkpointing，以及记录真实更新/有限梯度/复制组参数与AdamW状态。损失、采样器、每轮训练和验证仍调用native实现；有界`max_steps`的外层循环在累计上限后退出，不会意外继续下一轮。检查点仍使用原生BF16格式，实际回载不代表FP32无损恢复。
+
+重生成入口新增可配置采样参数与目标文件身份，按conversation primary ID校验完整覆盖，允许多轮/工具对话产生多条监督记录。进程清理支持native launcher执行`exec`后argv变化，但仍核对内核starttime、私有session和清理时的当前argv，并通过实际Linux进程测试验证不影响无关进程。新的硬件测试均使用独立新运行目录，不覆盖既有结果、模型或原数据；具体预算与结果以`VALIDATION.json`为准。

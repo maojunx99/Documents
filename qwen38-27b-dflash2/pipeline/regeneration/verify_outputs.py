@@ -5,11 +5,12 @@ import collections
 import json
 
 
-def verify(folder, expected_rows=None, expected_sampling=None):
+def verify(folder, expected_rows=None, expected_sampling=None, expected_primary_ids=None):
     files = sorted(Path(folder).glob('*_out.jsonl'))
     if not files:
         raise ValueError('No regeneration output shards found')
     seen = set()
+    primary = set()
     finish = collections.Counter()
     rows = 0
     for path in files:
@@ -23,6 +24,7 @@ def verify(folder, expected_rows=None, expected_sampling=None):
                 if key in seen:
                     raise ValueError('Duplicate generated record ID: ' + str(key))
                 seen.add(key)
+                primary.add(str(row.get('primary_id', key)))
                 meta = row['metadata']
                 if expected_sampling and any(meta['sampling_params'].get(k) != v for k, v in expected_sampling.items()):
                     raise ValueError('Recorded sampling parameters differ')
@@ -30,7 +32,9 @@ def verify(folder, expected_rows=None, expected_sampling=None):
                 rows += 1
     if expected_rows is not None and rows != expected_rows:
         raise ValueError(f'Generated {rows} rows, expected {expected_rows}')
-    return {'passed': True, 'rows': rows, 'shards': len(files), 'finish_reasons': dict(finish),
+    if expected_primary_ids is not None and primary != set(expected_primary_ids):
+        raise ValueError(f'Conversation coverage differs: missing={len(set(expected_primary_ids)-primary)}, extra={len(primary-set(expected_primary_ids))}')
+    return {'passed': True, 'rows': rows, 'conversations': len(primary), 'shards': len(files), 'finish_reasons': dict(finish),
             'policy': 'Keep finish_reason=length records; training preparation applies its separate sequence cap.'}
 
 

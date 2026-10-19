@@ -33,6 +33,16 @@ def main():
         result = subprocess.run([sys.executable, str(ROOT / command[0]), *command[1:]],
                                 capture_output=True, text=True, check=True)
         json.loads(result.stdout)
+    with tempfile.TemporaryDirectory() as folder:
+        model=Path(folder)/'Qwen3.6-27B';model.mkdir()
+        (model/'config.json').write_text(json.dumps({'text_config':{
+            'hidden_size':5120,'vocab_size':248320,'num_hidden_layers':64}}))
+        result=subprocess.run([sys.executable,str(ROOT/'npu/run_pipeline.py'),
+            '--model',str(model),'--run',str(Path(folder)/'not_created'),
+            '--input',str(Path(folder)/'prompts.jsonl'),'--dry-run'],capture_output=True,text=True,check=True)
+        assert json.loads(result.stdout)['rank_mesh']==[[0,1,2,3],[4,5,6,7]]
+        assert not (Path(folder)/'not_created').exists()
+    subprocess.run([sys.executable,'-m','unittest','discover','-s',str(ROOT/'tests'),'-v'],check=True)
     sys.path.insert(0, str(ROOT / 'regeneration'))
     from verify_outputs import verify
     with tempfile.TemporaryDirectory() as folder:
@@ -49,7 +59,8 @@ def main():
         else:
             raise AssertionError('Duplicate IDs must fail')
     print(json.dumps({'passed': True, 'hashes': len(manifest['files']), 'python_files_parsed': parsed,
-                      'command_plans_checked': len(commands), 'cpu_output_schema_and_duplicate_checks': True,
+                      'command_plans_checked': len(commands)+1, 'cpu_output_schema_and_duplicate_checks': True,
+                      'npu_topology_model_switch_sampling_contract_tests': True,
                       'accelerator_jobs_started': 0}, indent=2))
 
 

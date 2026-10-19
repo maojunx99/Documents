@@ -1,34 +1,140 @@
 {
   "date": "2026-10-19",
-  "scope": "Publication checks only; no accelerator training, inference or regeneration launched.",
-  "linux_process_cleanup": {
+  "scope": "Original publication checks plus bounded actual NPU one-invocation integration validation. No GPU hardware retest.",
+  "original_publication_checks": {
+    "date": "2026-10-19",
+    "scope": "Publication checks only; no accelerator training, inference or regeneration launched.",
+    "linux_process_cleanup": {
+      "passed": true,
+      "cpu_process_cleanup_cases": [
+        {
+          "orphaned_launcher": false,
+          "owned_members": 2,
+          "remaining": 0,
+          "unowned_sentinel_alive": true
+        },
+        {
+          "orphaned_launcher": true,
+          "owned_members": 2,
+          "remaining": 0,
+          "unowned_sentinel_alive": true
+        }
+      ],
+      "accelerator_jobs_started": 0
+    },
+    "bash_syntax": {
+      "bash_syntax_passed": true,
+      "script_count": 22,
+      "accelerator_jobs_started": 0
+    },
+    "secrets_scan": {
+      "known_credential_prefixes": 0,
+      "private_keys": 0,
+      "token_literals": 0,
+      "private_machine_addresses": 0
+    },
+    "hardware_retest_of_public_wrappers": false
+  },
+  "unified_npu_workflow": {
     "passed": true,
-    "cpu_process_cleanup_cases": [
-      {
-        "orphaned_launcher": false,
-        "owned_members": 2,
-        "remaining": 0,
-        "unowned_sentinel_alive": true
-      },
-      {
-        "orphaned_launcher": true,
-        "owned_members": 2,
-        "remaining": 0,
-        "unowned_sentinel_alive": true
-      }
+    "target": "Qwen3.8-27B",
+    "device": "Ascend910B2C",
+    "raw_prompts": 128,
+    "new_generated_rows": 128,
+    "prepared_rows": 128,
+    "replicas": 2,
+    "shard_size": 4,
+    "world_size": 8,
+    "packed_tokens": 4096,
+    "max_anchors": 512,
+    "vocab_size": 248320,
+    "steps_per_rank": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
     ],
-    "accelerator_jobs_started": 0
+    "validated_epoch_indices": [
+      0,
+      1
+    ],
+    "smoke_overrides": {
+      "generation_max_tokens": 128,
+      "train_ratio": 0.8,
+      "warmup_ratio": 0,
+      "epochs": 2,
+      "max_steps": 2,
+      "generation_concurrency": 4
+    },
+    "initial_81_tensors_identical_empty_optimizer": true,
+    "real_optimizer_steps_and_changed_weights_all_ranks": true,
+    "replica_parameters_and_optimizer_identical": true,
+    "native_validation_and_two_checkpoints": true,
+    "final_model_and_optimizer_reload_all_ranks": true,
+    "source_files_rehashed": 265,
+    "prepared_files_rehashed": 4,
+    "large_target_files_verification": "File sizes/mtime unchanged; small configuration files additionally SHA256 checked. Not full target-weight rehash.",
+    "router_status_counts": {
+      "200": 273
+    },
+    "owned_identities_verified_exited": 24,
+    "selected_devices_free": true,
+    "unrelated_tasks_preserved": true,
+    "hidden_cache_removed": true,
+    "peak_allocated_GiB_during_updates": 33.845030307769775,
+    "peak_reserved_GiB_during_updates": 49.447265625,
+    "final_draft_model_sha256": "b401463795a9f3eaa34e57d5288b9a1227ae87966661aa08285a9afadc8866bc",
+    "light_evidence_archive_sha256": "77dcfdac998f1df9d0e99f0832fe77b2d5de019443224cfd37852e43c294f62d"
   },
-  "bash_syntax": {
-    "bash_syntax_passed": true,
-    "script_count": 22,
-    "accelerator_jobs_started": 0
+  "additional_topology_preflights": {
+    "passed": true,
+    "topologies": [
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        2
+      ]
+    ],
+    "four_fp32_and_four_bf16_steps_per_topology": true,
+    "scope": "toy collective/global-batch-gradient/save-reload checks, not full27B memory validation"
   },
-  "secrets_scan": {
-    "known_credential_prefixes": 0,
-    "private_keys": 0,
-    "token_literals": 0,
-    "private_machine_addresses": 0
+  "cpu_contract_tests": {
+    "passed": true,
+    "cases": 7,
+    "linux_exec_orphan_and_unrelated_process_cleanup": true,
+    "shell_syntax_and_environment_overrides": true,
+    "topologies_planned": [
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        4,
+        4
+      ]
+    ],
+    "same_structure_qwen36_target_switch_and_sampling_flags": true
   },
-  "hardware_retest_of_public_wrappers": false
+  "limitations": [
+    "Bounded pipeline validation, not long-run convergence or serving acceptance-length evaluation.",
+    "Real Qwen3.6-27B weights have not been run. Same-structure command planning and compatibility checks were exercised.",
+    "Native BF16 serialization rounds model/AdamW state and has no RNG snapshot; not lossless FP32 recovery.",
+    "One host. Training cards and live teacher cards must be disjoint.",
+    "Only 2xFSDP4 has this full27B one-invocation test; other topologies need capacity/real-workload validation."
+  ]
 }
