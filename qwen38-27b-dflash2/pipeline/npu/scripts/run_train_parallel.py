@@ -18,6 +18,7 @@ from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy
 from torch.distributed.tensor import DTensor
 from torch.distributed.checkpoint.state_dict import get_model_state_dict, StateDictOptions
 import speculators.train.trainer as native
+from replica_audit import audit_replicas
 
 options=argparse.ArgumentParser(add_help=False)
 options.add_argument('--parallel-replicas',type=int,required=True)
@@ -125,6 +126,9 @@ def optimizer_step(self):
          'npu_peak_allocated_bytes':torch.npu.max_memory_allocated(),'npu_peak_reserved_bytes':torch.npu.max_memory_reserved()}
     with (AUDIT/f'updates_rank{RANK}.jsonl').open('a') as f:f.write(json.dumps(row)+'\n')
     save('progress',row)
+    if n in (1,3,100) or n%1000==0:
+        assert audit_replicas(self._params,self.optimizers,self.model._training_mesh,
+                              X,Y,save,f'step{n}'),'Replica difference; named payload saved before failure'
 
 
 def run_training(self):
@@ -132,19 +136,26 @@ def run_training(self):
     for epoch in range(self.current_epoch,self.config.num_epochs):
         if self.config.max_steps and self.global_step>=self.config.max_steps:break
         self._audit_epoch=epoch
-        self.train_epoch(epoch);dist.barrier();self.maybe_save_checkpoint(epoch);dist.barrier()
+        self.train_epoch(epoch);dist.barrier()
+        assert audit_replicas(self._params,self.optimizers,self.model._training_mesh,
+                              X,Y,save,f'epoch{epoch}_before_save'),'Replica difference before checkpoint'
+        self.maybe_save_checkpoint(epoch);dist.barrier()
+        assert audit_replicas(self._params,self.optimizers,self.model._training_mesh,
+                              X,Y,save,f'epoch{epoch}_after_save'),'Replica difference after checkpoint'
         metrics=self.val_epoch(epoch)
         assert metrics and all(math.isfinite(v) for v in metrics.values())
         save(f'validation_epoch{epoch}',{'global_step':self.global_step,'metrics':metrics,'batches':len(self.val_loader)})
-        dist.barrier();self.maybe_update_best(epoch,metrics);dist.barrier();epochs.append(epoch)
+        dist.barrier();self.maybe_update_best(epoch,metrics);dist.barrier()
+        assert audit_replicas(self._params,self.optimizers,self.model._training_mesh,
+                              X,Y,save,f'epoch{epoch}_after_validation'),'Replica difference after validation'
+        epochs.append(epoch)
     assert epochs and self.global_step>0
-    state={n:digest(local(p)) for n,p in self._params.items()}
-    state['optimizer']=[{str(k):digest(local(v)) if isinstance(v,torch.Tensor) else repr(v) for k,v in s.items()}
-                        for o in self.optimizers for s in o.state.values()]
-    gathered=[None]*(X*Y);dist.all_gather_object(gathered,state)
-    assert all(gathered[r]==gathered[RANK%Y] for r in range(RANK%Y,X*Y,Y))
-    save('replica_state',{'passed':True,'replica_ranks':list(range(RANK%Y,X*Y,Y)),'hashes':state})
     last=epochs[-1]
+    payload_path=f'replica_epoch{last}_after_validation_rank{RANK}.json'
+    named=json.loads((AUDIT/payload_path).read_text())['all_rank_payloads'][RANK]['tensors']
+    save('replica_state',{'passed':True,'replica_ranks':list(range(RANK%Y,X*Y,Y)),
+                          'hashes':named,
+                          'named_payload':payload_path})
     full=get_model_state_dict(self.model,options=StateDictOptions(full_state_dict=True,cpu_offload=True))
     if RANK==0:
         from safetensors.torch import load_file

@@ -79,6 +79,8 @@ bash examples/npu/04_run.sh
 
 成功标志是`status.json`的`stage=completed`，且`COMPLETION_VERIFICATION.json`中`passed=true`。失败查看`failure.json`、`stage_processes/*.log`、`audit/failure_rank*.json`和`cleanup_summary.json`。不要覆盖失败目录或自动重启训练。结果保留到主机挂载目录；五轮检查点需另留约每轮12GiB及数据/缓存空间。
 
+副本审计在第1/3/100步、此后每1000步，以及每轮保存前后和验证后执行。`audit/replica_*_rank*.json`按参数名记录模型与AdamW状态；差异明细先保存再停止，包含副本rank、张量名、最大/平均绝对误差和转成BF16后是否逐字节相同。优化器字典的遍历顺序只作诊断，不当作参数差异；数值一致性仍要求逐字节相同，不会因BF16转换掩盖差异而放行。
+
 ### 分阶段运行
 
 需要分别执行预检、重生成、预处理、教师/训练和真实推理评测时，使用[分阶段说明](STAGES.md)。这些脚本共用`config.local.npu.sh`；一键入口仍保留。

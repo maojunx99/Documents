@@ -200,5 +200,54 @@
     },
     "real_npu_five_benchmark_requests_completed_by_new_entry": 0,
     "scope": "New orchestration and CPU contracts; actual evaluation requires a separate DFlash2-capable NPU runtime."
+  },
+  "replica_audit_controls_20261021": {
+    "scope": "Audit helper tested on 8 NPUs; CPU contracts for updated wrapper. Does not certify the prior full-epoch run.",
+    "replicas": 2,
+    "shard_size": 4,
+    "positive_exact_parameter_optimizer_parity": true,
+    "optimizer_iteration_order_permutation_passed": true,
+    "injected_parameter_difference": {
+      "ranks": [
+        0,
+        4
+      ],
+      "key": "model/0.weight",
+      "max_abs": 0.25,
+      "detected": true
+    },
+    "injected_optimizer_difference": {
+      "ranks": [
+        1,
+        5
+      ],
+      "key": "optimizer0/0.weight/exp_avg",
+      "max_abs": 0.1249999925494194,
+      "detected": true
+    },
+    "exact_restore_passed": true,
+    "evidence_saved_before_failure": true,
+    "cpu_tests": {
+      "run": 32,
+      "passed": 31,
+      "skipped_linux_only": 1
+    },
+    "prior_full_epoch_replica_failure_root_cause": "Unresolved: old assertion discarded the differing payload; this change improves detection and preservation, not a demonstrated numerical fix.",
+    "full_model_native_save_control": {
+      "trainable_tensors": 81,
+      "trainable_parameters": 1924404480,
+      "steps": 3,
+      "packed_tokens": 4096,
+      "anchors": 512,
+      "replicas": 2,
+      "shard_size": 4,
+      "synthetic_hidden_inputs": true,
+      "native_distributed_rank_state_verified": true,
+      "rank0_only_native_save": true,
+      "validation_forwards": 8,
+      "all_named_parameter_and_optimizer_replica_checks_exact": true,
+      "original_trained_checkpoint_unchanged": true,
+      "limitation": "Short diagnostic with synthetic hidden inputs; cannot certify the original51,724-update trajectory."
+    }
   }
 }
