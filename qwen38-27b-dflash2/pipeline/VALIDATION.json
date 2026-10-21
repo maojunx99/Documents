@@ -249,5 +249,28 @@
       "original_trained_checkpoint_unchanged": true,
       "limitation": "Short diagnostic with synthetic hidden inputs; cannot certify the original51,724-update trajectory."
     }
+  },
+  "epoch_stop_target_norm_20261021": {
+    "cpu_contract_tests": {
+      "run": 35,
+      "passed": 34,
+      "skipped_linux_only": 1
+    },
+    "target_norm_real_weight_cpu_check": {
+      "model_type": "qwen3_5_text",
+      "plain_vs_target_relative_l2": 0.5130038261413574,
+      "corrected_vs_target_exact": true
+    },
+    "scheduler_reference": {
+      "base_lr": 0.0006,
+      "total_steps": 258565,
+      "warmup_steps": 10342,
+      "planned_epochs": 5,
+      "stop_after_epoch_zero_based": 0
+    },
+    "hardware_scope": "4xFSDP2 collectives/FP32 global-gradient parity/BF16/save-reload preflight passed on 8 NPUs; full corrected epoch0 is not yet completed.",
+    "replica_root_cause": "Original long-run replica failure remains unresolved; prior named-evidence auditor controls passed.",
+    "data_failure_guard": "Refuse missing teacher samples before CollateFn can remove them.",
+    "no_gpu_hardware_retest": true
   }
 }

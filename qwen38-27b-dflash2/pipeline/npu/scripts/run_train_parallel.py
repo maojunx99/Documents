@@ -23,11 +23,26 @@ from replica_audit import audit_replicas
 options=argparse.ArgumentParser(add_help=False)
 options.add_argument('--parallel-replicas',type=int,required=True)
 options.add_argument('--parallel-shard-size',type=int,required=True)
+options.add_argument('--parallel-stop-after-epoch',type=int)
 parallel,remaining=options.parse_known_args()
 X,Y=parallel.parallel_replicas,parallel.parallel_shard_size
 RANK=int(os.environ['RANK'])
 AUDIT=Path(os.environ['TRAIN_AUDIT']);AUDIT.mkdir(parents=True,exist_ok=True)
 Trainer=native.Trainer
+import speculators.train.data as native_data
+original_get_raw_data=native_data.ArrowDataset._get_raw_data
+
+
+def strict_get_raw_data(self,index):
+    sample=original_get_raw_data(self,index)
+    if sample is None:
+        save(f'data_failure_pid{os.getpid()}',{'index':int(index),'rank':RANK,
+             'reason':'Missing or invalid teacher hidden states; refuse silent CollateFn sample removal'})
+        raise RuntimeError(f'Missing or invalid teacher sample {index}; refusing a dropped record')
+    return sample
+
+
+native_data.ArrowDataset._get_raw_data=strict_get_raw_data
 
 
 def save(name,value):
@@ -57,10 +72,15 @@ original_model=Trainer.setup_model
 
 
 def setup_model(self):
+    from speculators.models.utils import resolve_verifier_norm_class, uses_gemma_style_final_norm
+    expected_norm=resolve_verifier_norm_class(self.model.config)
+    assert isinstance(self.model.verifier_norm,expected_norm),'Verifier norm must match the actual target gain convention'
     self.model.supports_gradient_checkpointing=True
     self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant':False})
     self._initial_hashes={n:{'shape':list(p.shape),'dtype':str(p.dtype),'sha256':digest(p)} for n,p in self.model.named_parameters() if p.requires_grad}
-    save('before_shard',{'trainable':self._initial_hashes,'random_initialization':True})
+    save('before_shard',{'trainable':self._initial_hashes,'random_initialization':True,
+                        'verifier_norm_class':type(self.model.verifier_norm).__name__,
+                        'verifier_norm_gain':'1+w' if uses_gemma_style_final_norm(self.model.config) else 'w'})
     original_model(self)
 
 
@@ -89,6 +109,9 @@ def setup_optimizer(self):
          'trainable_parameters_global':sum(p.numel() for p in params.values()),
          'trainable_parameters_local':sum(local(p).numel() for p in params.values()),
          'optimizer_initial_states':[len(o.state) for o in self.optimizers],
+         'scheduler_total_steps':self.config.scheduler_total_steps,
+         'scheduler_warmup_steps':self.config.scheduler_warmup_steps,
+         'planned_epochs':self.config.num_epochs,'stop_after_epoch':parallel.parallel_stop_after_epoch,
          'placements':{n:str(p.placements) for n,p in params.items()},'sampler_dp_size':get_dp_size()})
     torch.npu.reset_peak_memory_stats()
     def output_hook(module,args,output):
@@ -134,6 +157,7 @@ def optimizer_step(self):
 def run_training(self):
     epochs=[]
     for epoch in range(self.current_epoch,self.config.num_epochs):
+        if parallel.parallel_stop_after_epoch is not None and epoch>parallel.parallel_stop_after_epoch:break
         if self.config.max_steps and self.global_step>=self.config.max_steps:break
         self._audit_epoch=epoch
         self.train_epoch(epoch);dist.barrier()
@@ -177,7 +201,8 @@ def run_training(self):
              'trainable_tensors':len(self._params),'all_ranks_match_serialized_bf16_expanded_fp32':True,
              'limitation':'Native BF16 model/moments and floating step; no RNG snapshot. Not lossless FP32 resume.'})
     dist.barrier()
-    save('final',{'passed':True,'completed_optimizer_steps':self.global_step,'completed_epochs':epochs,'max_steps':self.config.max_steps})
+    save('final',{'passed':True,'completed_optimizer_steps':self.global_step,'completed_epochs':epochs,'max_steps':self.config.max_steps,
+                  'planned_epochs':self.config.num_epochs,'stop_after_epoch':parallel.parallel_stop_after_epoch})
 
 
 Trainer.setup_model=setup_model;Trainer.setup_optimizer=setup_optimizer;Trainer._optimizers_step=optimizer_step;Trainer.run_training=run_training

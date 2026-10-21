@@ -29,7 +29,7 @@ class PipelineContract(unittest.TestCase):
                                     '--input',str(self.root/'prompts.jsonl'),*extra])
 
     def test_configurable_mesh(self):
-        for x,y in [(1,4),(2,2),(2,4),(4,4)]:
+        for x,y in [(1,4),(2,2),(2,4),(4,2),(4,4)]:
             cards=','.join(map(str,range(8,8+x*y)))
             a=self.args('--replicas',str(x),'--shard-size',str(y),'--train-devices',cards)
             result=validate(a);plan=command_plan(a,result)
@@ -42,6 +42,19 @@ class PipelineContract(unittest.TestCase):
     def test_invalid_topology_fails_before_any_job(self):
         for options in [('--replicas','1'),('--train-devices','0,0'),('--teacher-groups','8,9'),
                         ('--regeneration-groups','8,9;9,10'),('--shard-size','0')]:
+            with self.assertRaises(ValueError):validate(self.args(*options))
+
+    def test_epoch0_stop_preserves_explicit_five_epoch_schedule(self):
+        a=self.args('--epochs','5','--stop-after-epoch','0','--scheduler-total-steps','258565',
+                    '--scheduler-warmup-steps','10342','--replicas','4','--shard-size','2')
+        plan=command_plan(a,validate(a))['trainer']
+        for key,value in [('--epochs','5'),('--parallel-stop-after-epoch','0'),
+                          ('--scheduler-total-steps','258565'),('--scheduler-warmup-steps','10342')]:
+            self.assertEqual(plan[plan.index(key)+1],value)
+        self.assertNotIn('--max-steps',plan)
+        for options in [('--stop-after-epoch','5'),('--stop-after-epoch','-1'),
+                        ('--scheduler-total-steps','0'),('--scheduler-warmup-steps','-1'),
+                        ('--scheduler-total-steps','100','--scheduler-warmup-steps','100')]:
             with self.assertRaises(ValueError):validate(self.args(*options))
 
     def test_new_target_and_sampling_propagate_to_all_stages(self):

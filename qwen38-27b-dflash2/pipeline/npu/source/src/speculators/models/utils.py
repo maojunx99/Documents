@@ -1,12 +1,34 @@
 import logging
 import warnings
 from copy import deepcopy
-from functools import partial
+from functools import cache, partial
 
 import torch
 from transformers import AutoConfig, PretrainedConfig
+from transformers.models.gemma3.modeling_gemma3 import Gemma3RMSNorm
+from transformers.models.qwen3.modeling_qwen3 import Qwen3RMSNorm
 
 logger = logging.getLogger(__name__)
+
+GEMMA_STYLE_FINAL_NORM_MODEL_TYPES = frozenset((
+    'gemma', 'gemma2', 'gemma3', 'gemma3_text', 'qwen3_5', 'qwen3_5_text', 'recurrent_gemma',
+))
+
+
+@cache
+def _verifier_model_type(name_or_path):
+    return str(getattr(get_verifier_config(name_or_path), 'model_type', '') or '').lower()
+
+
+def uses_gemma_style_final_norm(config):
+    verifier = getattr(getattr(config, 'speculators_config', None), 'verifier', None)
+    name = getattr(verifier, 'name_or_path', None)
+    return bool(name and _verifier_model_type(name) in GEMMA_STYLE_FINAL_NORM_MODEL_TYPES)
+
+
+def resolve_verifier_norm_class(config):
+    """Match the actual target's final gain: Qwen3.5 uses 1+w; Qwen3 uses w."""
+    return Gemma3RMSNorm if uses_gemma_style_final_norm(config) else Qwen3RMSNorm
 
 
 def conditional_torch_compile(func=None, *args, **kwargs):

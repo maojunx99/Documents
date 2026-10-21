@@ -252,7 +252,8 @@ class Stage:
         for i, (group, command) in enumerate(zip(r['teachers'], self.commands['teachers'])):
             write(teachers.run / f'server{i}_provenance.json', {'argv': command, 'source_manifest': str(self.run / 'protected_source.json')})
             process = teachers.start(f'server{i}', command,
-                       dict(self.env, ASCEND_RT_VISIBLE_DEVICES=','.join(map(str, group))), cwd=BASE / 'source')
+                       dict(self.env, ASCEND_RT_VISIBLE_DEVICES=','.join(map(str, group)),
+                            VLLM_PORT=str(a.teacher_port+1000+100*i)), cwd=BASE / 'source')
             self.live.append(process)
             health(a.teacher_port+i, process)
         env = dict(self.env, TEACHER_ROUTER_PORT=str(a.router_port),

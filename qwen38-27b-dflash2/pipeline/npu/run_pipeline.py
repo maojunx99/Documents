@@ -190,7 +190,8 @@ def main():
         teachers=new_owner(run/'teachers')
         for i,(group,cmd) in enumerate(zip(resolved['teachers'],commands['teachers'])):
             write(run/f'teachers/server{i}_provenance.json',{'argv':cmd,'wrapper_consumed_provenance':True,'source_fingerprints':str(run/'protected_source.json')})
-            p=teachers.start(f'server{i}',cmd,dict(env,ASCEND_RT_VISIBLE_DEVICES=','.join(map(str,group))),cwd=source)
+            p=teachers.start(f'server{i}',cmd,dict(env,ASCEND_RT_VISIBLE_DEVICES=','.join(map(str,group)),
+                VLLM_PORT=str(a.teacher_port+1000+100*i)),cwd=source)
             teacher_processes.append(p);health(a.teacher_port+i,p)
         router_env=dict(env,TEACHER_ROUTER_PORT=str(a.router_port),TEACHER_BACKEND_PORTS=','.join(str(a.teacher_port+i) for i in range(len(resolved['teachers']))),
                         TEACHER_ROUTING_LOG=str(run/'router_routing.jsonl'))

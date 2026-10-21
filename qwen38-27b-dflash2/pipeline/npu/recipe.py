@@ -58,6 +58,9 @@ def parser():
     p.add_argument('--max-anchors', type=int, default=512)
     p.add_argument('--epochs', type=int, default=5)
     p.add_argument('--max-steps', type=int)
+    p.add_argument('--stop-after-epoch', type=int, help='Inclusive zero-based stop boundary; does not shorten the LR schedule')
+    p.add_argument('--scheduler-total-steps', type=int, help='Explicit LR horizon, independent of the execution stop boundary')
+    p.add_argument('--scheduler-warmup-steps', type=int, help='Explicit warmup steps; overrides warmup-ratio')
     p.add_argument('--train-ratio', type=float, default=.99)
     p.add_argument('--lr', type=float, default=.0006)
     p.add_argument('--weight-decay', type=float, default=0.)
@@ -110,6 +113,13 @@ def validate(a):
                 'generation_max_tokens','generation_concurrency','generation_max_num_seqs','teacher_max_num_seqs','stage_timeout']
     if any(getattr(a,n)<1 for n in positive) or a.workers < 1 or (a.max_steps is not None and a.max_steps < 1):
         raise ValueError('Lengths, budgets, workers, and prefetch values must be positive')
+    if a.stop_after_epoch is not None and not 0 <= a.stop_after_epoch < a.epochs:
+        raise ValueError('stop-after-epoch must be zero-based and less than epochs')
+    if a.scheduler_total_steps is not None and a.scheduler_total_steps < 1:
+        raise ValueError('scheduler-total-steps must be positive')
+    if a.scheduler_warmup_steps is not None and (a.scheduler_warmup_steps < 0 or
+            (a.scheduler_total_steps is not None and a.scheduler_warmup_steps >= a.scheduler_total_steps)):
+        raise ValueError('scheduler-warmup-steps must be nonnegative and less than the explicit LR horizon')
     if a.packed_tokens < a.sample_max_length:
         raise ValueError('packed-tokens must be >= sample-max-length')
     if not 0 < a.generation_memory_utilization < 1 or not 0 < a.teacher_memory_utilization < 1:
@@ -117,6 +127,8 @@ def validate(a):
     if a.lr <= 0 or min(a.weight_decay,a.selector_alpha,a.ce_weight,a.tv_weight,a.noise_std)<0 or a.ce_weight+a.tv_weight<=0:
         raise ValueError('Invalid learning rate or loss weights')
     ports = [a.router_port]+list(range(a.teacher_port,a.teacher_port+len(teachers)))
+    if a.teacher_port+1000+100*(len(teachers)-1)+99>65535:
+        raise ValueError('teacher-port leaves insufficient private distributed port ranges')
     if len(ports)!=len(set(ports)) or any(not 1<=v<=65535 for v in ports+list(range(a.generation_port,a.generation_port+len(regen)))):
         raise ValueError('Invalid or overlapping live teacher/router ports')
     a.model=a.model.resolve();a.run=a.run.resolve();a.draft_config=a.draft_config.resolve()
@@ -183,4 +195,7 @@ def command_plan(a, resolved):
       '--hidden-states-dtype','bfloat16','--request-timeout','900','--max-retries','3','--on-missing','generate','--on-generate','delete',
       '--checkpoint-freq','1','--fsdp-shard','--log-freq','10','--no-resume-from-checkpoint']
     if a.max_steps is not None:plan['trainer']+=['--max-steps',str(a.max_steps)]
+    if a.stop_after_epoch is not None:plan['trainer']+=['--parallel-stop-after-epoch',str(a.stop_after_epoch)]
+    if a.scheduler_total_steps is not None:plan['trainer']+=['--scheduler-total-steps',str(a.scheduler_total_steps)]
+    if a.scheduler_warmup_steps is not None:plan['trainer']+=['--scheduler-warmup-steps',str(a.scheduler_warmup_steps)]
     return plan

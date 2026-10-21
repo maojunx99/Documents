@@ -49,6 +49,9 @@ PACKED_TOKENS="${PACKED_TOKENS:-4096}"
 MAX_ANCHORS="${MAX_ANCHORS:-512}"
 EPOCHS="${EPOCHS:-5}"
 MAX_STEPS="${MAX_STEPS:-}"   # Empty = full epochs; a positive value = finite global-update smoke.
+STOP_AFTER_EPOCH="${STOP_AFTER_EPOCH:-}" # Inclusive zero-based boundary; keeps EPOCHS for the LR schedule.
+SCHEDULER_TOTAL_STEPS="${SCHEDULER_TOTAL_STEPS:-}"
+SCHEDULER_WARMUP_STEPS="${SCHEDULER_WARMUP_STEPS:-}"
 TRAIN_RATIO="${TRAIN_RATIO:-0.99}"
 LR="${LR:-0.0006}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0}"
@@ -75,6 +78,9 @@ else
 fi
 extra=()
 [[ -z "$MAX_STEPS" ]] || extra+=(--max-steps "$MAX_STEPS")
+[[ -z "$STOP_AFTER_EPOCH" ]] || extra+=(--stop-after-epoch "$STOP_AFTER_EPOCH")
+[[ -z "$SCHEDULER_TOTAL_STEPS" ]] || extra+=(--scheduler-total-steps "$SCHEDULER_TOTAL_STEPS")
+[[ -z "$SCHEDULER_WARMUP_STEPS" ]] || extra+=(--scheduler-warmup-steps "$SCHEDULER_WARMUP_STEPS")
 [[ -z "$GENERATION_SEED" ]] || extra+=(--generation-seed "$GENERATION_SEED")
 [[ -z "$HIDDEN_CACHE" ]] || extra+=(--hidden-cache "$HIDDEN_CACHE")
 

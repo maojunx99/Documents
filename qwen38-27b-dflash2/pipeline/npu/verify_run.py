@@ -25,7 +25,8 @@ def verify_training(run,a,resolved):
     steps=final[0]['completed_optimizer_steps'];epochs=final[0]['completed_epochs']
     assert steps>0 and all(v['completed_optimizer_steps']==steps and v['completed_epochs']==epochs for v in final)
     assert a.max_steps is None or steps<=a.max_steps
-    assert len(epochs)==a.epochs or (a.max_steps is not None and steps==a.max_steps)
+    expected_epochs=a.epochs if a.stop_after_epoch is None else a.stop_after_epoch+1
+    assert epochs==list(range(expected_epochs)) or (a.max_steps is not None and steps==a.max_steps)
     maximum=[]
     for rank in range(world):
         updates=[json.loads(l) for l in (audit/f'updates_rank{rank}.jsonl').read_text().splitlines()]
