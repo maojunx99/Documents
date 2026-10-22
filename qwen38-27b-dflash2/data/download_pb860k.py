@@ -11,11 +11,36 @@ import os
 from pathlib import Path
 import shutil
 import tarfile
+import threading
 import time
 import urllib.request
 
 BASE = 'https://github.com/maojunx99/Documents/releases/download/pb860k-regenerated-20261022/'
+RELEASE_API = 'https://api.github.com/repos/maojunx99/Documents/releases/tags/pb860k-regenerated-20261022'
 MANIFEST_SHA256 = '1f0dd2e29f367040af03aadc8e4f0d03cec856dd059e8e09d04337b7a95c2f4e'
+ASSET_URLS = {}
+ASSET_LOCK = threading.Lock()
+
+
+def open_asset(name, offset=0):
+    # The public API also works on hosts that cannot reach github.com itself.
+    with ASSET_LOCK:
+        if not ASSET_URLS:
+            request = urllib.request.Request(RELEASE_API, headers={'User-Agent': 'pb860k-dataset-downloader'})
+            with urllib.request.urlopen(request, timeout=40) as response:
+                release = json.load(response)
+            if release['draft'] or release['tag_name'] != 'pb860k-regenerated-20261022':
+                raise ValueError('Unexpected dataset release')
+            ASSET_URLS.update({a['name']: a['url'] + '?download=1' for a in release['assets']})
+    headers = {'User-Agent': 'pb860k-dataset-downloader', 'Accept': 'application/octet-stream'}
+    if offset:
+        headers['Range'] = f'bytes={offset}-'
+    request = urllib.request.Request(ASSET_URLS[name], headers=headers)
+    response = urllib.request.urlopen(request, timeout=90)
+    if 'application/json' in response.headers.get('Content-Type', ''):
+        response.close()
+        raise ValueError('GitHub returned asset metadata instead of binary content')
+    return response
 
 
 def digest(path):
@@ -40,11 +65,7 @@ def download(part, directory):
             if offset > part['bytes']:
                 raise ValueError(f'Partial download exceeds expected size: {temp}')
             if offset < part['bytes']:
-                headers = {'User-Agent': 'pb860k-dataset-downloader'}
-                if offset:
-                    headers['Range'] = f'bytes={offset}-'
-                req = urllib.request.Request(BASE + p.name, headers=headers)
-                with urllib.request.urlopen(req, timeout=90) as response:
+                with open_asset(p.name, offset) as response:
                     if offset and response.status == 206:
                         if not response.headers.get('Content-Range', '').startswith(f'bytes {offset}-'):
                             raise ValueError('Unexpected Content-Range')
@@ -108,7 +129,7 @@ def main():
     if manifest_path.exists():
         raw = manifest_path.read_bytes()
     else:
-        with urllib.request.urlopen(BASE + 'DATASET_MANIFEST.json', timeout=90) as response:
+        with open_asset('DATASET_MANIFEST.json') as response:
             raw = response.read()
     if hashlib.sha256(raw).hexdigest() != MANIFEST_SHA256:
         raise ValueError('Dataset manifest checksum mismatch')
