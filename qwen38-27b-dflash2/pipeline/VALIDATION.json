@@ -272,5 +272,37 @@
     "replica_root_cause": "Original long-run replica failure remains unresolved; prior named-evidence auditor controls passed.",
     "data_failure_guard": "Refuse missing teacher samples before CollateFn can remove them.",
     "no_gpu_hardware_retest": true
+  },
+  "official_weight_finetune_smoke_20261030": {
+    "passed": true,
+    "target": "Qwen3.8-27B",
+    "device": "Ascend910B2C",
+    "replicas": 4,
+    "shard_size": 2,
+    "world_size": 8,
+    "teacher_tensor_parallel_size": 2,
+    "existing_prepared_rows": 160,
+    "new_response_regeneration": false,
+    "packed_tokens_per_rank": 4096,
+    "max_anchors_per_rank": 512,
+    "optimizer_updates_per_rank": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "learning_rate": 1e-05,
+    "official_weight_sha256": "67fc76d68dc5a9415511a4f394ef744d67510cd20e93b37cc2cc7d28e4bab65c",
+    "all81_trainable_tensors_exact_on_all8_ranks": true,
+    "fp32_master_parameters": true,
+    "bf16_forward_backward": true,
+    "fresh_optimizer": true,
+    "native_validation_save_actual_reload_replica_audits_and_owned_cleanup": true,
+    "light_evidence_archive_sha256": "4e86bccf72b25b55962ed1161fdc4789c5e0a19d4b30d81000fbf71d20b6855a",
+    "scope": "Bounded weight-only fine-tuning integration test; no acceptance-length or quality improvement claim."
   }
 }

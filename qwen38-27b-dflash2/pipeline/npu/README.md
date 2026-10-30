@@ -50,6 +50,7 @@ vi config.local.npu.sh
 | `TEMPERATURE`、`TOP_P`、`TOP_K`、`PRESENCE_PENALTY`、`REASONING_EFFORT` | 回答重生成参数 |
 | `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 单样本上限、packed预算、每rank packed批次共享的anchors上限 |
 | `EPOCHS`、`LR`、`WARMUP_RATIO`、`SELECTOR_ALPHA` | 训练轮数、学习率、warmup和selector损失权重 |
+| `FROM_PRETRAINED` | 可选的官方/原生DFlash2权重目录；留空则随机初始化 |
 | `RUN_ROOT`、`RUN_DIR`、`STAGE_TIMEOUT` | 结果位置、新任务目录、每阶段时间上限 |
 
 默认FSDP4使用0～3卡、在线教师TP2使用4/5卡；重生成阶段先用4个TP2覆盖0～7卡，退出后再进入训练。2×FSDP4需要8张训练卡，**教师另需独立卡**；所有分组均可配置，改变卡数不会自动调整学习率。
@@ -85,6 +86,39 @@ bash examples/npu/04_run.sh
 
 教师logits重建的最终归一化按目标模型实际`model_type`选择：Qwen3.5系列使用`1+w`增益，Qwen3使用`w`。该选择与目录名称无关，训练初始化会记录并检查实际norm类型。
 
+### 从官方或已有权重续训
+
+完成容器和依赖准备后，编辑`config.local.npu.sh`：
+
+```bash
+TARGET_MODEL=/models/Qwen3.8-27B
+FROM_PRETRAINED=/models/Qwen3.8-27B-DFlash2
+RUN_DIR=/data/runs/qwen38_27b_finetune_01
+```
+
+`FROM_PRETRAINED`也可以指向我们保存的原生checkpoint目录，例如`/data/runs/previous/checkpoints/0`；目录必须包含实际safetensors权重和`config.json`。`RUN_DIR`使用不存在的新目录。留空`FROM_PRETRAINED`仍从随机draft开始训练。
+
+| 需要设置的配置 | 说明 |
+|---|---|
+| `TARGET_MODEL` | 本次在线教师使用的目标模型；目标结构、tokenizer及特征层须与draft兼容 |
+| `FROM_PRETRAINED` | 官方或原生DFlash2的初始模型权重 |
+| `LR`、`EPOCHS`、`WARMUP_RATIO` | 本次微调的新学习率计划；不会自动继承原训练计划 |
+| `FSDP_REPLICAS`、`FSDP_SHARD_SIZE`及卡号分组 | 与从零训练相同，教师另用独立空闲卡 |
+| `INPUT_FILES`或`REGENERATED_DIR` | 新题源，或同一目标模型身份校验通过的已有重生成结果 |
+
+先检查计划，再执行；使用第3步配置好的输入数据和训练预算：
+
+```bash
+bash examples/npu/04_run.sh --dry-run
+bash examples/npu/04_run.sh
+```
+
+分阶段入口同样读取`FROM_PRETRAINED`，调用方式见下一节。`REGENERATED_DIR`留空时，会先用本次目标模型重生成回答；填写已有结果时，必须保留其`REGENERATION_CONFIG.json`及目标模型身份记录。
+
+脚本为官方配置生成独立的训练视图，只读引用原始权重；官方零起点decoder层号转换成训练hidden-state索引时加1。首次更新前，所有训练rank逐项核对全部可训练张量与源权重一致，拒绝缺失张量导致的随机初始化。BF16初始权重精确展开成FP32主参数，前后向主要采用BF16，AdamW状态和梯度聚合采用FP32。
+
+此入口执行**加载已有权重后的微调**：新建AdamW与scheduler，不恢复源目录的优化器、scheduler或RNG状态。它与从中断点保留完整训练状态的恢复方式不同。官方只发布模型权重时，也无法恢复其未公开的训练状态。
+
 ### 分阶段运行
 
 需要分别执行预检、重生成、预处理、教师/训练和真实推理评测时，使用[分阶段说明](STAGES.md)。这些脚本共用`config.local.npu.sh`；一键入口仍保留。
@@ -106,3 +140,5 @@ bash examples/npu/stages/05_evaluate.sh
 已验证环境为torch2.10.0、torch_npu2.10.0.post4、vLLM0.26.0、vllm-ascend开发提交`155f68974`、CANN9.1.0；[官方rc2镜像](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc2/Dockerfile)与它并非逐字节相同，**干净镜像安装路径尚未单独完成端到端验证**，新机器请先跑smoke。安装脚本的版本检查不替代实际训练验证。
 
 [完整包版本](environment-recorded.json) · [硬件验证记录](../VALIDATION.json) · [源码说明](../PROVENANCE.md) · [返回平台选择](../README.md)
+
+2026-10-30另已验证：官方Qwen3.8-27B DFlash2权重加载→4×FSDP2/每rank512 anchors与4096 packed→3次实际更新→原生验证/保存/回载/副本审计→owned清理。8个rank的81个可训练张量均先与官方源值精确核对；以FP32主参数、BF16计算训练。使用160条已有prepared数据，没有重新生成回答；此项验证续训通路，不构成质量或接受长度提升的证据。

@@ -140,6 +140,8 @@ class Stage:
 
     def preflight(self):
         a, r = self.a, self.resolved
+        from npu.pretrained import materialize
+        materialize(a, r)
         (self.run / 'preflight').mkdir(exist_ok=False)
         cards = r['train'] + [d for g in r['teachers'] for d in g]
         assert_free('npu', cards)

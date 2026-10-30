@@ -13,6 +13,7 @@ INPUT_FILES=(/data/prompts/*.jsonl)
 # Optional: reuse verified answers from this same target instead of regenerating.
 REGENERATED_DIR="${REGENERATED_DIR:-}"
 DRAFT_CONFIG="${DRAFT_CONFIG:-$ROOT/npu/draft_config.json}"
+FROM_PRETRAINED="${FROM_PRETRAINED:-}" # Optional native/official DFlash2 weights; new optimizer.
 TARGET_LAYERS=(6 20 34 48 62)
 MASK_TOKEN_ID="${MASK_TOKEN_ID:-248070}"
 
@@ -77,6 +78,7 @@ else
   data_args=(--input "${INPUT_FILES[@]}")
 fi
 extra=()
+[[ -z "$FROM_PRETRAINED" ]] || extra+=(--from-pretrained "$FROM_PRETRAINED")
 [[ -z "$MAX_STEPS" ]] || extra+=(--max-steps "$MAX_STEPS")
 [[ -z "$STOP_AFTER_EPOCH" ]] || extra+=(--stop-after-epoch "$STOP_AFTER_EPOCH")
 [[ -z "$SCHEDULER_TOTAL_STEPS" ]] || extra+=(--scheduler-total-steps "$SCHEDULER_TOTAL_STEPS")

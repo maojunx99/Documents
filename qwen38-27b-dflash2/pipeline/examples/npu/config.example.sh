@@ -36,6 +36,7 @@ GENERATION_SEED="${GENERATION_SEED:-}" # Empty: native unseeded sampling.
 # Same 27B structure with different target weights: change TARGET_MODEL and regenerate.
 # Different architectures require deliberate draft/layer/mask changes and new validation.
 DRAFT_CONFIG="${DRAFT_CONFIG:-$PIPELINE_ROOT/npu/draft_config.json}"
+FROM_PRETRAINED="${FROM_PRETRAINED:-}" # Optional official/native DFlash2 weight directory; empty = random draft.
 MASK_TOKEN_ID="${MASK_TOKEN_ID:-248070}"
 SAMPLE_MAX_LENGTH="${SAMPLE_MAX_LENGTH:-4096}"
 PACKED_TOKENS="${PACKED_TOKENS:-4096}"

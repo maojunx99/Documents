@@ -51,6 +51,7 @@ def parser():
     p.add_argument('--generation-max-num-seqs', type=int, default=64)
     p.add_argument('--generation-memory-utilization', type=float, default=.85)
     p.add_argument('--draft-config', type=Path, default=BASE/'draft_config.json')
+    p.add_argument('--from-pretrained', type=Path, help='Load native or official DFlash2 weights; start a new optimizer and schedule')
     p.add_argument('--target-layer-ids', type=int, nargs='+', default=[6,20,34,48,62])
     p.add_argument('--mask-token-id', type=int, default=248070)
     p.add_argument('--sample-max-length', type=int, default=4096)
@@ -134,7 +135,19 @@ def validate(a):
     a.model=a.model.resolve();a.run=a.run.resolve();a.draft_config=a.draft_config.resolve()
     raw=json.loads((a.model/'config.json').read_text())
     target=raw.get('text_config',raw)
-    draft=json.loads(a.draft_config.read_text())
+    pretrained = None
+    if a.from_pretrained:
+        from npu.pretrained import describe
+        a.from_pretrained = a.from_pretrained.resolve()
+        pretrained = describe(a.from_pretrained, a.model)
+        saved = pretrained['config']
+        if saved['aux_hidden_state_layer_ids'] != a.target_layer_ids or saved['mask_token_id'] != a.mask_token_id:
+            raise ValueError('Pretrained feature layers/mask differ; pass matching --target-layer-ids and --mask-token-id')
+        if saved['block_size'] != 8 or saved.get('sample_from_anchor', False):
+            raise ValueError('This pipeline requires block8 with the anchor excluded from prediction')
+        draft=saved['transformer_layer_config']
+    else:
+        draft=json.loads(a.draft_config.read_text())
     draft=draft.get('transformer_layer_config',draft)
     for name in ['hidden_size','vocab_size']:
         if target[name]!=draft[name]:
@@ -146,7 +159,7 @@ def validate(a):
     if a.sample_max_length>a.generation_max_model_len:
         raise ValueError('Generation context must accommodate training sample cap')
     return {'train':train,'teachers':teachers,'regeneration':regen,'target_text_config':target,'draft':copy.deepcopy(draft),
-            'mesh':[list(range(i*a.shard_size,(i+1)*a.shard_size)) for i in range(a.replicas)]}
+            'mesh':[list(range(i*a.shard_size,(i+1)*a.shard_size)) for i in range(a.replicas)], 'pretrained':pretrained}
 
 
 def command_plan(a, resolved):
@@ -198,4 +211,7 @@ def command_plan(a, resolved):
     if a.stop_after_epoch is not None:plan['trainer']+=['--parallel-stop-after-epoch',str(a.stop_after_epoch)]
     if a.scheduler_total_steps is not None:plan['trainer']+=['--scheduler-total-steps',str(a.scheduler_total_steps)]
     if a.scheduler_warmup_steps is not None:plan['trainer']+=['--scheduler-warmup-steps',str(a.scheduler_warmup_steps)]
+    if a.from_pretrained:
+        i=plan['trainer'].index('--draft-config')
+        plan['trainer'][i:i+2]=['--from-pretrained',str(r/'pretrained_draft')]
     return plan

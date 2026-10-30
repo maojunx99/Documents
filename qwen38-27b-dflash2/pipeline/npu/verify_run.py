@@ -4,10 +4,18 @@ import math
 
 
 def verify_training(run,a,resolved):
+    warm_start = False
+    if getattr(a, 'from_pretrained', None):
+        from npu.pretrained import materialize
+        materialize(a, resolved)  # Re-hash the immutable source after training.
+        warm_start = True
     audit=run/'audit';world=a.replicas*a.shard_size
     def read(name,rank):return json.loads((audit/f'{name}_rank{rank}.json').read_text())
     assert not list(audit.glob('failure_rank*.json'))
     initial=[read('initial',i) for i in range(world)]
+    if warm_start:
+        loaded=[read('pretrained_loaded',i) for i in range(world)]
+        assert all(v['passed'] and v['all_trainable_tensors_match_source']==initial[0]['trainable'] for v in loaded)
     final=[read('final',i) for i in range(world)]
     assert all(v['passed'] for v in final)
     assert all(v['trainable']==initial[0]['trainable'] and v['optimizer_initial_states']==[0] for v in initial)
@@ -49,5 +57,6 @@ def verify_training(run,a,resolved):
     return {'replicas':a.replicas,'shard_size':a.shard_size,'rank_mesh':resolved['mesh'],'steps_per_rank':[steps]*world,
             'completed_epochs':epochs,'trainable_parameters':global_count,'trainable_tensors':len(initial[0]['trainable']),
             'initial_parameters_identical_empty_optimizer':True,'replica_parameter_optimizer_checks':True,
+            'initialization':'pretrained weights, fresh optimizer' if warm_start else 'random draft',
             'checkpoint_save_reload':reload,'memory_peak':maximum,'native_validation':read(f'validation_epoch{epochs[-1]}',0),
             'scope':'Training pipeline checks; not serving acceptance-length evaluation.'}

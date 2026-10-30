@@ -65,6 +65,8 @@ def main():
     if a.input:assert_free('npu',[d for g in resolved['regeneration'] for d in g])
     a.run.mkdir(parents=True,exist_ok=False)
     run=a.run;source=BASE/'source';owners=[];teacher_processes=[];completed=False
+    from npu.pretrained import materialize
+    materialize(a, resolved)
     cache=a.hidden_cache.resolve() if a.hidden_cache else run/'hidden_states'
     if cache.exists():raise ValueError('hidden-cache must be a new directory, never an existing shared cache')
     if cache==run or run.is_relative_to(cache):raise ValueError('hidden-cache cannot contain the run directory')

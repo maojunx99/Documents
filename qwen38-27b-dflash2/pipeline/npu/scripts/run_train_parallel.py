@@ -72,13 +72,33 @@ original_model=Trainer.setup_model
 
 
 def setup_model(self):
+    # HF loads BF16 checkpoint parameters as BF16. This workflow requires FP32
+    # master parameters and AdamW states; BF16 -> FP32 preserves every source value.
+    if '--from-pretrained' in remaining:
+        self.model.float()
     from speculators.models.utils import resolve_verifier_norm_class, uses_gemma_style_final_norm
     expected_norm=resolve_verifier_norm_class(self.model.config)
     assert isinstance(self.model.verifier_norm,expected_norm),'Verifier norm must match the actual target gain convention'
     self.model.supports_gradient_checkpointing=True
     self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant':False})
     self._initial_hashes={n:{'shape':list(p.shape),'dtype':str(p.dtype),'sha256':digest(p)} for n,p in self.model.named_parameters() if p.requires_grad}
-    save('before_shard',{'trainable':self._initial_hashes,'random_initialization':True,
+    checkpoint=None;matched={}
+    if '--from-pretrained' in remaining:
+        from safetensors import safe_open
+        checkpoint=Path(remaining[remaining.index('--from-pretrained')+1])
+        state=dict(self.model.named_parameters())
+        for file in sorted(checkpoint.glob('model*.safetensors')):
+            with safe_open(str(file),framework='pt',device='cpu') as weights:
+                for n in weights.keys():
+                    if n in self._initial_hashes:
+                        value=weights.get_tensor(n).float()
+                        assert n not in matched and tuple(value.shape)==tuple(state[n].shape)
+                        assert digest(value)==self._initial_hashes[n]['sha256'],f'Pretrained tensor was not loaded exactly: {n}'
+                        matched[n]=self._initial_hashes[n]
+        assert matched.keys()==self._initial_hashes.keys(),'Missing trainable pretrained tensors; refuse random fallback'
+        save('pretrained_loaded',{'passed':True,'checkpoint':str(checkpoint),'all_trainable_tensors_match_source':matched,
+                                'trainable_tensors':len(matched),'optimizer_restarted':True})
+    save('before_shard',{'trainable':self._initial_hashes,'random_initialization':checkpoint is None,
                         'verifier_norm_class':type(self.model.verifier_norm).__name__,
                         'verifier_norm_gain':'1+w' if uses_gemma_style_final_norm(self.model.config) else 'w'})
     original_model(self)

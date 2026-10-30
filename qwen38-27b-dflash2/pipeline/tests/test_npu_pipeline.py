@@ -76,6 +76,32 @@ class PipelineContract(unittest.TestCase):
             (self.model/'config.json').write_text(json.dumps(target))
             with self.assertRaisesRegex(ValueError,key):validate(self.args())
 
+    def test_official_warm_start_preserves_decoder_and_hidden_layer_convention(self):
+        ck=self.root/'official';ck.mkdir()
+        raw={'architectures':['DFlash2DraftModel'],'model_type':'qwen3','hidden_size':5120,
+             'vocab_size':248320,'num_hidden_layers':5,'sliding_window':2048,
+             'rope_parameters':{'rope_theta':10000000,'rope_type':'default'},
+             'dflash_config':{'block_size':8,'mask_token_id':248070,'selector_rank':256,
+                              'selector_top_k':16,'conv_kernel_size':2,'conv_group_size':16,
+                              'target_layer_ids':[5,19,33,47,61]}}
+        (ck/'config.json').write_text(json.dumps(raw));(ck/'model.safetensors').write_bytes(b'weight-presence-only')
+        a=self.args('--from-pretrained',str(ck));resolved=validate(a);plan=command_plan(a,resolved)['trainer']
+        self.assertNotIn('--draft-config',plan)
+        self.assertEqual(plan[plan.index('--from-pretrained')+1],str(a.run/'pretrained_draft'))
+        self.assertEqual(resolved['pretrained']['config']['aux_hidden_state_layer_ids'],[6,20,34,48,62])
+        self.assertEqual(resolved['draft']['sliding_window'],2048)
+        self.assertEqual(resolved['draft']['rope_parameters'],raw['rope_parameters'])
+        (ck/'model.safetensors').unlink()
+        with self.assertRaisesRegex(ValueError,'actual safetensors'):validate(a)
+
+    def test_warm_start_rejects_wrong_hidden_layers(self):
+        from npu.pretrained import describe
+        ck=self.root/'native';ck.mkdir()
+        cfg={'speculators_model_type':'dflash2','transformer_layer_config':{'hidden_size':5120,'vocab_size':248320},
+             'block_size':8,'mask_token_id':248070,'aux_hidden_state_layer_ids':[5,19,33,47,61]}
+        (ck/'config.json').write_text(json.dumps(cfg));(ck/'model.safetensors').write_bytes(b'x')
+        with self.assertRaisesRegex(ValueError,'feature layers'):validate(self.args('--from-pretrained',str(ck)))
+
     def test_dry_run_needs_no_accelerator_and_creates_no_run(self):
         result=subprocess.run([sys.executable,str(ROOT/'npu/run_pipeline.py'),
             '--model',str(self.model),'--run',str(self.root/'not_created'),
