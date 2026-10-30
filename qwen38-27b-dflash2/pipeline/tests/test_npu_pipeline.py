@@ -102,6 +102,23 @@ class PipelineContract(unittest.TestCase):
         (ck/'config.json').write_text(json.dumps(cfg));(ck/'model.safetensors').write_bytes(b'x')
         with self.assertRaisesRegex(ValueError,'feature layers'):validate(self.args('--from-pretrained',str(ck)))
 
+    def test_native_warm_start_keeps_saved_layers_without_second_shift(self):
+        ck=self.root/'native_valid';ck.mkdir()
+        decoder=json.loads((ROOT/'npu/draft_config.json').read_text())
+        cfg={'speculators_model_type':'dflash2','transformer_layer_config':decoder,
+             'block_size':8,'mask_token_id':248070,'aux_hidden_state_layer_ids':[6,20,34,48,62],
+             'selector_rank':256,'selector_top_k':16,'conv_kernel_size':2,'conv_group_size':16,
+             'sliding_window_non_causal':True,'sample_from_anchor':False}
+        source=json.dumps(cfg);(ck/'config.json').write_text(source)
+        (ck/'model.safetensors').write_bytes(b'weight-presence-only')
+        a=self.args('--from-pretrained',str(ck));resolved=validate(a);trainer=command_plan(a,resolved)['trainer']
+        saved=resolved['pretrained']['config']
+        self.assertEqual(saved['aux_hidden_state_layer_ids'],cfg['aux_hidden_state_layer_ids'])
+        self.assertEqual(saved['transformer_layer_config'],decoder)
+        self.assertEqual(saved['speculators_config']['verifier']['name_or_path'],str(self.model.resolve()))
+        self.assertIn('--from-pretrained',trainer);self.assertNotIn('--draft-config',trainer)
+        self.assertEqual((ck/'config.json').read_text(),source)
+
     def test_dry_run_needs_no_accelerator_and_creates_no_run(self):
         result=subprocess.run([sys.executable,str(ROOT/'npu/run_pipeline.py'),
             '--model',str(self.model),'--run',str(self.root/'not_created'),

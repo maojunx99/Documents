@@ -98,6 +98,15 @@ RUN_DIR=/data/runs/qwen38_27b_finetune_01
 
 `FROM_PRETRAINED`也可以指向我们保存的原生checkpoint目录，例如`/data/runs/previous/checkpoints/0`；目录必须包含实际safetensors权重和`config.json`。`RUN_DIR`使用不存在的新目录。留空`FROM_PRETRAINED`仍从随机draft开始训练。
 
+脚本按配置格式自动选择加载分支：
+
+| 来源 | 配置识别与处理 | 特征层编号 |
+|---|---|---|
+| 官方发布权重 | 从`dflash_config`和外层decoder配置生成训练配置 | 官方decoder层号加1，转换成hidden-state索引 |
+| 原生训练checkpoint | 识别`speculators_model_type=dflash2`，保留保存的`transformer_layer_config` | 原有`aux_hidden_state_layer_ids`直接使用，不再加1 |
+
+两种来源最终通过同一个原生模型加载器读入权重，并在分片前逐项核对可训练张量。无需手工改写源目录的配置文件。
+
 | 需要设置的配置 | 说明 |
 |---|---|
 | `TARGET_MODEL` | 本次在线教师使用的目标模型；目标结构、tokenizer及特征层须与draft兼容 |
