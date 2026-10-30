@@ -1,6 +1,15 @@
-# NPU：从容器到训练
+# NPU：从零预训练与已有权重续训
 
-以下以910B/A2、单机8卡为例，命令从`pipeline/`目录执行。主机先准备驱动/固件、Docker、完整目标模型和原始问题JSONL。
+**默认主流程是从零训练DFlash2草稿模型**：随机初始化草稿网络，使用已训练好的27B目标模型提供回答与在线教师特征；目标模型本身保持冻结。
+
+以下以910B/A2、单机8卡为例，命令从`pipeline/`目录执行。主机先准备驱动/固件、Docker、完整目标模型和原始问题JSONL。两种训练方式共用第1～3节的环境与配置准备，再选择对应入口：
+
+| 训练方式 | 初始草稿权重 | 运行说明 |
+|---|---|---|
+| 从零预训练（默认） | `FROM_PRETRAINED=""`，按`DRAFT_CONFIG`随机初始化 | [第4节：从零预训练](#from-scratch) |
+| 已有权重续训（可选） | `FROM_PRETRAINED`指定官方或原生checkpoint目录 | [第5节：已有权重续训](#from-pretrained) |
+
+需要逐步运行时，见[第6节：分阶段运行](#staged-run)。
 
 | 步骤 | 脚本 | 执行位置 |
 |---|---|---|
@@ -59,9 +68,25 @@ vi config.local.npu.sh
 
 同结构Qwen3.6-27B等权重可修改`TARGET_MODEL`，随后重新生成回答与hidden states；入口检查模型/tokenizer兼容性。不同结构需明确修改draft、特征层及mask配置后重新验证。只有同一目标身份核验通过的已有生成结果，才可用`REGENERATED_DIR`跳过生成。
 
-## 4. 运行
+<a id="from-scratch"></a>
 
-### 一键运行
+## 4. 从零预训练（默认主流程）
+
+在第3节生成的`config.local.npu.sh`中确认以下配置。**从零训练不需要下载官方DFlash2草稿权重**；目标模型的embedding、输出头及最终归一化仍从`TARGET_MODEL`加载并冻结。
+
+| 配置 | 从零训练设置 |
+|---|---|
+| `TARGET_MODEL` | 已准备好的目标模型目录，例如`/models/Qwen3.8-27B` |
+| `FROM_PRETRAINED` | 留空：`FROM_PRETRAINED=""` |
+| `DRAFT_CONFIG` | 默认使用仓库的`npu/draft_config.json`，决定随机草稿网络的结构与特征层 |
+| `INPUT_FILES` | 原始题源列表；管线用目标模型重新生成回答，再预处理和训练 |
+| `REGENERATED_DIR` | 默认留空；仅复用同一目标模型身份核验通过的已有回答时填写 |
+| `EPOCHS`、`LR`、`WARMUP_RATIO` | 默认`5`、`0.0006`、`0.04`，从第0轮开始新建AdamW与学习率计划 |
+| `RUN_DIR` | 留空自动创建新目录；或指定一个不存在的目录，避免与已有训练混用 |
+
+如果此前用这份配置续训过，请先清空`FROM_PRETRAINED`。从零训练与续训调用同一组脚本，初始化方式由此参数决定。
+
+### 4.1 一键运行
 
 先查看配置与命令，再用128条原始对话、最多2次更新验证全流程：
 
@@ -86,7 +111,9 @@ bash examples/npu/04_run.sh
 
 教师logits重建的最终归一化按目标模型实际`model_type`选择：Qwen3.5系列使用`1+w`增益，Qwen3使用`w`。该选择与目录名称无关，训练初始化会记录并检查实际norm类型。
 
-### 从官方或已有权重续训
+<a id="from-pretrained"></a>
+
+## 5. 从官方或已有权重续训（可选）
 
 完成容器和依赖准备后，编辑`config.local.npu.sh`：
 
@@ -122,13 +149,15 @@ bash examples/npu/04_run.sh --dry-run
 bash examples/npu/04_run.sh
 ```
 
-分阶段入口同样读取`FROM_PRETRAINED`，调用方式见下一节。`REGENERATED_DIR`留空时，会先用本次目标模型重生成回答；填写已有结果时，必须保留其`REGENERATION_CONFIG.json`及目标模型身份记录。
+分阶段入口同样读取`FROM_PRETRAINED`，调用方式见[第6节](#staged-run)。`REGENERATED_DIR`留空时，会先用本次目标模型重生成回答；填写已有结果时，必须保留其`REGENERATION_CONFIG.json`及目标模型身份记录。
 
 脚本为官方配置生成独立的训练视图，只读引用原始权重；官方零起点decoder层号转换成训练hidden-state索引时加1。首次更新前，所有训练rank逐项核对全部可训练张量与源权重一致，拒绝缺失张量导致的随机初始化。BF16初始权重精确展开成FP32主参数，前后向主要采用BF16，AdamW状态和梯度聚合采用FP32。
 
 此入口执行**加载已有权重后的微调**：新建AdamW与scheduler，不恢复源目录的优化器、scheduler或RNG状态。它与从中断点保留完整训练状态的恢复方式不同。官方只发布模型权重时，也无法恢复其未公开的训练状态。
 
-### 分阶段运行
+<a id="staged-run"></a>
+
+## 6. 分阶段运行（两种初始化方式通用）
 
 需要分别执行预检、重生成、预处理、教师/训练和真实推理评测时，使用[分阶段说明](STAGES.md)。这些脚本共用`config.local.npu.sh`；一键入口仍保留。
 
@@ -142,7 +171,7 @@ bash examples/npu/stages/05_evaluate.sh
 
 先在配置中填写固定的新`RUN_DIR`；评测还需填写`EVAL_CASES`和支持DFlash2的`EVAL_PYTHON`。训练阶段保留每轮原生验证与回载检查；第5步另跑T=0/T=1真实推理五基准。
 
-## 验证范围与参考
+## 7. 验证范围与参考
 
 已在910B2C既有环境通过128条重生成→2×FSDP4/512 anchors真实更新→原生验证/保存/回载→清理；另有[原1万条FSDP4流程](LEGACY_FSDP4.md)。这验证流程与容量，不是默认五轮的质量评测；BF16落盘与缺少RNG快照也不等于FP32无损恢复。
 
