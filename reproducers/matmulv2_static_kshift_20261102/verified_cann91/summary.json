@@ -1,0 +1,51 @@
+{
+  "numerical_mismatch_reproduced": true,
+  "native_kernel_selection_verified": true,
+  "kernel_names": [
+    "MatMulV2_NDNZ_ND_FP16_FP16_false_false_all_229443",
+    "static_kernel_MatMulV2_435594604cc1ada9d0ed63c74eb4eb80ea6b02d6612cfedcfdaf3bc032bc9d8d_218282_d0__kernel0"
+  ],
+  "shape_a": [
+    1,
+    2048
+  ],
+  "shape_b": [
+    2048,
+    2048
+  ],
+  "dtype": "bfloat16",
+  "formats": [
+    "ND",
+    "FRACTAL_NZ",
+    "ND"
+  ],
+  "cases": 64,
+  "output_elements": 131072,
+  "default_changed_elements": 22,
+  "close_k_shift_1_changed_elements": 0,
+  "ordinary_changed_by_close_k_shift": 22,
+  "static_changed_by_close_k_shift": 0,
+  "ordinary_graph_self_changed": 0,
+  "static_graph_self_changed": 0,
+  "default_graph_changed_elements": 22,
+  "first_input_differences": [
+    {
+      "index": 1053,
+      "ordinary": -0.8671875,
+      "static": -0.86328125,
+      "fp64_reference": -0.8652345320442691
+    }
+  ],
+  "static_metadata": [
+    {
+      "path": "/tmp/matmulv2_static_kshift_repro_20261102/result_cann91/install/static_kernel/ai_core/static_kernel_261102194138104714_218282/ascend910_93/MatMulV2/static_kernel_MatMulV2_435594604cc1ada9d0ed63c74eb4eb80ea6b02d6612cfedcfdaf3bc032bc9d8d_218282_d0.json",
+      "kernelName": "static_kernel_MatMulV2_435594604cc1ada9d0ed63c74eb4eb80ea6b02d6612cfedcfdaf3bc032bc9d8d_218282_d0__kernel0",
+      "blockDim": 22,
+      "opParaSize": 0,
+      "opMode": "static",
+      "sha256": "944d8e32a928dee9c52835b49abf119b471e5c6e168fccee3c6b8788993e8c67"
+    }
+  ],
+  "fixture_sha256": "e2cdc5c2489c768dd58d768e106cfa7523b2db2b0145715ff6ec59cef38b34f1",
+  "interpretation": "A difference is evidence of numerical inconsistency; it alone does not establish violation of an operator error tolerance."
+}

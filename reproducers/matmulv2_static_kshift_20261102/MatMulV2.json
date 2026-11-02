@@ -1,0 +1,98 @@
+{
+  "attrs": [
+    {
+      "dtype": "bool",
+      "index": 0,
+      "name": "transpose_x1",
+      "value": false
+    },
+    {
+      "dtype": "bool",
+      "index": 1,
+      "name": "transpose_x2",
+      "value": false
+    },
+    {
+      "dtype": "int",
+      "index": 2,
+      "name": "offset_x",
+      "value": 0
+    }
+  ],
+  "deterministic": "false",
+  "impl_mode": "high_precision",
+  "inputs": [
+    {
+      "dtype": "bfloat16",
+      "format": "ND",
+      "index": 0,
+      "is_view": true,
+      "name": "x1",
+      "offset": 0,
+      "origin_format": "ND",
+      "origin_shape": [
+        1,
+        2048
+      ],
+      "param_type": "",
+      "shape": [
+        1,
+        2048
+      ],
+      "stride": [],
+      "value_depend": false
+    },
+    {
+      "dtype": "bfloat16",
+      "format": "FRACTAL_NZ",
+      "index": 1,
+      "is_view": true,
+      "name": "x2",
+      "offset": 0,
+      "origin_format": "ND",
+      "origin_shape": [
+        2048,
+        2048
+      ],
+      "param_type": "",
+      "shape": [
+        128,
+        128,
+        16,
+        16
+      ],
+      "stride": [],
+      "value_depend": false
+    },
+    null,
+    null
+  ],
+  "op_type": "MatMulV2",
+  "outputs": [
+    {
+      "dtype": "bfloat16",
+      "format": "ND",
+      "index": 0,
+      "is_view": true,
+      "name": "y",
+      "offset": 0,
+      "origin_format": "ND",
+      "origin_shape": [
+        1,
+        2048
+      ],
+      "param_type": "",
+      "shape": [
+        1,
+        2048
+      ],
+      "stride": [],
+      "value_depend": false
+    }
+  ],
+  "platform_info": {
+    "cube_core_cnt": 24,
+    "vector_core_cnt": 48
+  },
+  "tune_mode": "all"
+}
