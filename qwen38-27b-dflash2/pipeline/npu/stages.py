@@ -84,7 +84,7 @@ def stage_plan(a, resolved, commands):
               'rank_mesh': resolved['mesh'], 'requires': None if a.stage == 'preflight' else ORDER[ORDER.index(a.stage)-1],
               'no_devices_or_files_created': True}
     keys = {'preflight': ['parallel_preflight'], 'regenerate': ['generation_server', 'regeneration'],
-            'prepare': ['prepare'], 'train': ['teachers', 'remote_teachers', 'router', 'trainer']}
+            'prepare': ['prepare'], 'train': ['teachers', 'remote_teachers', 'teacher_nodes', 'router', 'trainer']}
     if a.stage == 'evaluate':
         from evaluation.run import plan
         result['evaluation'] = plan(a, inspect_checkpoint=False)
@@ -103,6 +103,7 @@ class Stage:
         self.owners, self.live, self.products = [], [], []
         self.cache = None
         self.remote_client = None
+        self.deployment = None
         self.env = source_environment(BASE / 'source', {
             'TORCHDYNAMO_DISABLE': '1', 'TASK_QUEUE_ENABLE': '1', 'OMP_NUM_THREADS': '2',
             'HCCL_EXEC_TIMEOUT': '600', 'HCCL_CONNECT_TIMEOUT': '180',
@@ -263,8 +264,12 @@ class Stage:
             health(a.teacher_port+i, process)
         from teachers.client import connect, router_environment
         remote_backends = []
-        if r.get('remote_teachers'):
-            self.remote_client, remote_backends = connect(r['remote_teachers'], a.model, 'npu', a.target_layer_ids,
+        peers = r.get('remote_teachers', [])
+        if r.get('teacher_nodes'):
+            from teachers.autodeploy import start
+            self.deployment, peers = start(a, r, self.run/'teacher_deployment')
+        if peers:
+            self.remote_client, remote_backends = connect(peers, a.model, 'npu', a.target_layer_ids,
                                                           self.run/'remote_teachers', max(a.packed_tokens,a.sample_max_length)+1)
         env = dict(self.env, TEACHER_ROUTER_PORT=str(a.router_port),
                    TEACHER_ROUTING_LOG=str(self.run / 'router_routing.jsonl'),
@@ -292,10 +297,17 @@ class Stage:
                 self.remote_client.close(consumers_stopped=not errors)
             except BaseException as exc:
                 errors.append(repr(exc))
+        if self.deployment:
+            try:
+                self.deployment.close(consumers_stopped=not errors)
+            except BaseException as exc:
+                errors.append(repr(exc))
         if errors:
             write(self.folder / 'cleanup_failure.json', {'errors': errors})
             raise RuntimeError('Some owned processes did not cleanly exit; preserve the cache and inspect receipts')
-        if self.cache:
+        if self.cache and self.resolved.get('remote_teachers') and not self.deployment:
+            write(self.run/'hidden_cache_cleanup.json',{'preserved':str(self.cache),'reason':'External teacher producers are managed outside this pipeline.'})
+        elif self.cache:
             marker = json.loads((self.cache / 'OWNER.json').read_text())
             if marker['run'] != str(self.run):
                 raise ValueError('Cache owner marker changed; no cleanup authorized')
@@ -383,7 +395,7 @@ def execute(a, resolved, commands):
                 signal.signal(signal.SIGTERM, previous_signal)
         if a.stage == 'train':
             result = json.loads((run / 'TRAINING_VERIFICATION.json').read_text())
-            result.update(passed=True, owned_processes_released=True, hidden_cache_removed=True)
+            result.update(passed=True, owned_processes_released=True, hidden_cache_removed=stage.cache is None or not stage.cache.exists())
             write(run / 'COMPLETION_VERIFICATION.json', result)
             stage.products.append(run / 'COMPLETION_VERIFICATION.json')
         receipt = {'passed': True, 'stage': a.stage, 'utc_epoch': time.time(),

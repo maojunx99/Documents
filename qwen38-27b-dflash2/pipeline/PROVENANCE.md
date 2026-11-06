@@ -1,14 +1,14 @@
 # 源码与公开整理说明
 
-## 2026-11-06：多机器在线teacher公开入口
+## 2026-11-06：原生多机器teacher入口
 
-新增`teachers/`，把2026-10-19在两台A2上运行过的“同机等待writer完成、校验完整文件、共享存储原子发布”方案整理为独立模块。GPU、NPU一键入口和NPU分阶段入口都支持远端teacher列表、本地/远端混用及仅远端模式；原生损失、训练循环、anchors与并行参数没有改变。
+在线teacher直接运行原生vLLM服务，trainer原有router只做固定池分发。NPU顶层配置列出机器、物理卡号、TP和已有容器；脚本通过SSH启动/核验退出本次进程，hidden states只走共享盘。没有新增认证令牌、HTTP网关、租约或guardian服务。
 
-各teacher机器显式启动一次专用服务，trainer按配置认领；不包含私有SSH、密码、机器地址或现有服务接管代码。新协议比对目标权重/tokenizer完整SHA、训练源码及网关源码、包版本、特征层和共享目录，实际hidden探针通过后才加入固定router。原生服务只绑定loopback，网关认证值只从私有文件读取。生产者本机处理flock；trainer仅收到完成后的共享文件路径。
+新增原生`shared_file`后端，复用vLLM的hidden提取和异步设备到主机复制，只把writer改为临时文件、fsync、原子rename，trainer等待最终文件；不使用跨主机flock。对应GPU/NPU hs-connectors快照的三个传输文件及注册入口有公开修改，训练模型计算、loss、anchor和optimizer没有因此改变。
 
-新增租约、独立CPU guardian、目标/源码收尾审计和远端清理收据。异常时保留文件与证据，不丢训练样本、不自动重训；本公开版本没有引入历史任务的运行中热接入或自动本地回退。旧单机配置和旧router端口环境变量仍可使用。共享存储方案的带宽成本保留，不承诺线性加速。
+目标模型在选定共享挂载上按文件大小/mtime和小配置SHA核对；原生32/256-token探针另核对BF16、有限值和token对应。这些检查不等于不同机器hidden值逐字节确定。CPU、NPU及跨机实际验证边界见`VALIDATION.json`。
 
-新增测试只使用CPU模拟原生teacher和真实Linux进程/文件锁，验证HTTP并发、token/文件完整性、身份/认证拒绝、租约与owned清理；没有用本次公开入口重新启动多机加速卡训练。历史硬件实跑与本次CPU通过分开记录在`VALIDATION.json`和`teachers/README.md`。
+早期公开提交`c66ba12`采用认证网关方案，现按自用集群要求移除；其历史验证记录保留，不作为当前原生入口的验证结果。
 
 ## 已有实现
 
@@ -66,3 +66,11 @@ CPU回归检查覆盖精确token计数、原保存格式及文件指纹不变、
 ## 2026-10-21：目标归一化与轮末停止
 
 NPU冻结教师norm按目标模型实际model_type选择增益；Qwen3.5使用1+w，普通Qwen3使用w。真实目标norm权重的CPU检查确认修正后与目标类逐元素一致；这不是最终质量提升证明。新增独立epoch停止边界与显式scheduler总步数/warmup步数，避免只验证epoch0时缩短原学习率计划。4×FSDP2仅完成通信、梯度与保存回载预检，完整新训练尚未完成。教师缺失特征立即失败，教师服务使用独立分布式端口范围。原长程副本差异根因尚未确定，保留严格审计。
+
+
+2026-11-06 trusted-cluster simplification: removed the public HTTP authentication/gateway/lease layer.
+Online teachers now run native vLLM directly. Added `shared_file` to the GPU/NPU hs-connectors snapshots:
+`atomic_file.py`, `shared_file.py`, and `shared_file_connector.py`, registered in `__init__.py`.
+This reuses native extraction/copying and changes only writer publication to fsync+atomic rename and reader polling;
+no cross-host flock is used. Training model math, losses, and optimizer implementations are unchanged.
+The older `file` backend and source Mooncake backend remain available; no NPU Mooncake success is implied.

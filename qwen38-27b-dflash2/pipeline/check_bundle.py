@@ -28,10 +28,12 @@ def main():
          '--endpoints', 'http://127.0.0.1:8500', '--run', '/runs/answers', '--dry-run'],
         ['gpu/run_pipeline.py', '--model', '/models/target', '--data-dir', '/data/shards', '--run', '/runs/train', '--dry-run'],
         ['npu/scripts/prepare_preflights.py', '--dry-run'],
-        ['teachers/service.py', '--backend', 'npu', '--model', '/models/target', '--devices', '0,1',
-         '--run', '/shared/teacher_new', '--api-key-file', '/run/secrets/teacher.key', '--dry-run'],
-        ['teachers/service.py', '--backend', 'gpu', '--model', '/models/target', '--devices', '0,1',
-         '--run', '/shared/teacher_new', '--api-key-file', '/run/secrets/teacher.key', '--dry-run'],
+        ['teachers/launch.py', '--backend', 'npu', '--model', '/models/target', '--devices', '0,1',
+         '--run', '/shared/teacher_new', '--hidden-states-path', '/shared/job_hidden', '--served-model-name', '/models/target',
+         '--port','8395','--distributed-port','29300','--dry-run'],
+        ['teachers/launch.py', '--backend', 'gpu', '--model', '/models/target', '--devices', '0,1',
+         '--run', '/shared/teacher_new', '--hidden-states-path', '/shared/job_hidden', '--served-model-name', '/models/target',
+         '--port','8395','--distributed-port','29300','--dry-run'],
     ]
     for command in commands:
         result = subprocess.run([sys.executable, str(ROOT / command[0]), *command[1:]],

@@ -1,168 +1,72 @@
-# NPU：从零预训练与已有权重续训
+# NPU：从零训练与已有权重微调
 
-**默认主流程是从零训练DFlash2草稿模型**：随机初始化草稿网络，使用已训练好的27B目标模型提供回答与在线教师特征；目标模型本身保持冻结。
+默认随机初始化DFlash2草稿，目标模型冻结。以27B同结构模型、910B/A2为蓝本；Qwen3.6-27B等可更换目标权重后重新生成数据。
 
-以下以910B/A2、单机8卡为例，命令从`pipeline/`目录执行。主机先准备驱动/固件、Docker、完整目标模型和原始问题JSONL。两种训练方式共用第1～3节的环境与配置准备，再选择对应入口：
+在`pipeline/`目录按下表执行。每一步独立脚本，完整训练也保留一键入口。
 
-| 训练方式 | 初始草稿权重 | 运行说明 |
+| 步骤 | 执行位置 | 调用 |
 |---|---|---|
-| 从零预训练（默认） | `FROM_PRETRAINED=""`，按`DRAFT_CONFIG`随机初始化 | [第4节：从零预训练](#from-scratch) |
-| 已有权重续训（可选） | `FROM_PRETRAINED`指定官方或原生checkpoint目录 | [第5节：已有权重续训](#from-pretrained) |
+| 容器 | 主机 | `bash examples/npu/01_container.sh` |
+| 安装依赖 | 容器 | `bash examples/npu/02_install.sh` |
+| 生成配置 | 容器 | `bash examples/npu/03_configure.sh` |
+| 编辑参数 | 容器 | 修改`config.local.npu.sh` |
+| 查看计划 | 容器 | `bash examples/npu/04_run.sh --dry-run` |
+| 小步验证 | 容器 | `bash examples/npu/04_run.sh --smoke` |
+| 完整运行 | 容器 | `bash examples/npu/04_run.sh` |
 
-需要逐步运行时，见[第6节：分阶段运行](#staged-run)。
-
-| 步骤 | 脚本 | 执行位置 |
-|---|---|---|
-| 1. 启动容器 | `examples/npu/01_container.sh` | 主机 |
-| 2. 安装并检查依赖 | `examples/npu/02_install.sh` | 容器 |
-| 3. 生成可编辑配置 | `examples/npu/03_configure.sh` | 容器 |
-| 4. 验证或正式运行 | `examples/npu/04_run.sh` | 容器 |
-
-## 1. 启动容器
-
-获取代码，修改`01_container.sh`顶部的主机目录、镜像和卡号，然后运行。容器内自动挂载代码到`/workspace/pipeline`、模型到`/models`、题源到`/data/prompts`、结果到`/data/runs`。
-
-```bash
-git clone https://github.com/maojunx99/Documents.git
-cd Documents/qwen38-27b-dflash2/pipeline
-bash examples/npu/01_container.sh
-```
-
-默认镜像是A2的`quay.io/ascend/vllm-ascend:v0.26.0rc2`；A3需选择对应`-a3`镜像。卡号必须空闲，16卡机器需同时修改容器暴露卡号与第3步的训练/教师分组。已有容器用`docker start -ai dflash2-27b-train`进入。只查看启动命令可加`--dry-run`。
-
-## 2. 安装依赖
-
-进入容器后，工作目录已是`/workspace/pipeline`：
-
-```bash
-bash examples/npu/02_install.sh
-```
-
-脚本加载CANN/ATB环境，创建`/workspace/venvs/dflash2`，锁定镜像的计算栈后安装`requirements-training.txt`，再检查NPU、两个源码快照及仓库完整性。环境记录保存到`/workspace/environment_records`。自定义位置可修改脚本顶部的`VENV_PATH`和`ENV_RECORDS`。
-
-Speculators和hs-connectors直接加载仓库适配源码，无需再从PyPI安装。不要用归档中的`egg-info/requires.txt`安装依赖；基础包冲突时应核对镜像，不能通过升级torch/vLLM绕过约束。
-
-## 3. 修改参数
-
-```bash
-bash examples/npu/03_configure.sh
-vi config.local.npu.sh
-```
-
-配置从[config.example.sh](../examples/npu/config.example.sh)复制；已有配置不会覆盖，`config.local.*`不上传GitHub。后续所有运行读取这个文件，不需要修改训练实现。
-
-| 参数 | 修改内容 |
-|---|---|
-| `TARGET_MODEL`、`INPUT_FILES` | 容器内模型路径、原始题源文件列表 |
-| `FSDP_REPLICAS`、`FSDP_SHARD_SIZE` | x、y；训练卡数=x×y |
-| `TRAIN_DEVICES`、`TEACHER_TP_GROUPS`、`REGEN_TP_GROUPS` | 训练卡、独立在线教师、回答生成的TP分组 |
-| `TEMPERATURE`、`TOP_P`、`TOP_K`、`PRESENCE_PENALTY`、`REASONING_EFFORT` | 回答重生成参数 |
-| `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 单样本上限、packed预算、每rank packed批次共享的anchors上限 |
-| `EPOCHS`、`LR`、`WARMUP_RATIO`、`SELECTOR_ALPHA` | 训练轮数、学习率、warmup和selector损失权重 |
-| `FROM_PRETRAINED` | 可选的官方/原生DFlash2权重目录；留空则随机初始化 |
-| `REMOTE_TEACHERS` | 可选远端teacher列表JSON；`TEACHER_TP_GROUPS=""`表示仅用远端teacher |
-| `RUN_ROOT`、`RUN_DIR`、`STAGE_TIMEOUT` | 结果位置、新任务目录、每阶段时间上限 |
-
-默认FSDP4使用0～3卡、在线教师TP2使用4/5卡；重生成阶段先用4个TP2覆盖0～7卡，退出后再进入训练。2×FSDP4需要8张训练卡，**教师另需独立卡**；所有分组均可配置，改变卡数不会自动调整学习率。
-
-teacher也可使用其他机器上的空闲卡，见[多机器teacher说明](../teachers/README.md)。一键与分阶段入口均支持，本地/远端可混用；需要同路径挂载的共享存储、独立认证网关及目标/源码身份核验。
-
-题源每行需含`messages`或`conversations`；已有assistant回答会重新生成。默认T1/p.95/k20/presence1.5/xhigh、输出上限8192，客户端不额外添加system prompt。训练默认单样本/packed4096、512 anchors、5轮、CE.1＋TV.9、selector alpha.1、AdamW6e-4/WD0。
-
-同结构Qwen3.6-27B等权重可修改`TARGET_MODEL`，随后重新生成回答与hidden states；入口检查模型/tokenizer兼容性。不同结构需明确修改draft、特征层及mask配置后重新验证。只有同一目标身份核验通过的已有生成结果，才可用`REGENERATED_DIR`跳过生成。
+已有容器可直接复用；不必重新拉镜像或创建同类容器。安装脚本加载仓库内Speculators/hs-connectors适配源码并锁定计算栈，不要另行升级torch/vLLM。默认A2镜像`quay.io/ascend/vllm-ascend:v0.26.0rc2`；完整已验证版本及干净镜像的验证边界见[环境与审计细节](DETAILS.md#7-验证范围与参考)。
 
 <a id="from-scratch"></a>
 
-## 4. 从零预训练（默认主流程）
+## 从零训练：只改一份配置
 
-在第3节生成的`config.local.npu.sh`中确认以下配置。**从零训练不需要下载官方DFlash2草稿权重**；目标模型的embedding、输出头及最终归一化仍从`TARGET_MODEL`加载并冻结。
-
-| 配置 | 从零训练设置 |
+| 配置项 | 含义 |
 |---|---|
-| `TARGET_MODEL` | 已准备好的目标模型目录，例如`/models/Qwen3.8-27B` |
-| `FROM_PRETRAINED` | 留空：`FROM_PRETRAINED=""` |
-| `DRAFT_CONFIG` | 默认使用仓库的`npu/draft_config.json`，决定随机草稿网络的结构与特征层 |
-| `INPUT_FILES` | 原始题源列表；管线用目标模型重新生成回答，再预处理和训练 |
-| `REGENERATED_DIR` | 默认留空；仅复用同一目标模型身份核验通过的已有回答时填写 |
-| `EPOCHS`、`LR`、`WARMUP_RATIO` | 默认`5`、`0.0006`、`0.04`，从第0轮开始新建AdamW与学习率计划 |
-| `RUN_DIR` | 留空自动创建新目录；或指定一个不存在的目录，避免与已有训练混用 |
+| `TARGET_MODEL`、`INPUT_FILES` | 目标权重、原始题源JSONL；重生成不额外加入system prompt |
+| `FROM_PRETRAINED=""` | 留空即从随机草稿开始；无需官方draft权重 |
+| `FSDP_REPLICAS`、`FSDP_SHARD_SIZE`、`TRAIN_DEVICES` | x×FSDPy及训练卡；教师另用空卡 |
+| `REGEN_TP_GROUPS` | 重生成的独立TP组；生成退出后可复用这些卡 |
+| `TEACHER_TP_GROUPS` | 仅本机教师，例如`4,5;6,7`表示两组TP2 |
+| `TEMPERATURE`、`TOP_P`、`TOP_K`、`PRESENCE_PENALTY`、`REASONING_EFFORT` | 回答重采样参数 |
+| `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 单条上限、packed预算、每rank批次共享anchor预算 |
+| `EPOCHS`、`LR`、`WARMUP_RATIO` | 学习率计划；默认5轮、6e-4、4% |
+| `REGENERATED_DIR` | 可选复用同一目标身份核验通过的已有回答 |
+| `RUN_DIR` | 新目录；留空自动创建，拒绝覆盖旧任务 |
 
-如果此前用这份配置续训过，请先清空`FROM_PRETRAINED`。从零训练与续训调用同一组脚本，初始化方式由此参数决定。
+默认FSDP4用0～3卡、教师TP2用4/5卡，单条/packed4096、512 anchors、CE.1+TV.9、selector alpha.1。只执行epoch0但保留五轮调度时设置`EPOCHS=5`、`STOP_AFTER_EPOCH=0`。
 
-### 4.1 一键运行
+## 多机器教师：仍只改这份配置
 
-先查看配置与命令，再用128条原始对话、最多2次更新验证全流程：
-
-```bash
-bash examples/npu/04_run.sh --dry-run
-bash examples/npu/04_run.sh --smoke
-```
-
-smoke只覆盖本次调用的输出长度、划分、warmup和步数，不改配置文件；通过后正式运行：
+`TEACHER_NODES`非空时替代`TEACHER_TP_GROUPS`，把本机教师也写进去。每行是**机器或SSH别名｜物理卡号｜TP｜现有容器名（可选）**：
 
 ```bash
-bash examples/npu/04_run.sh
+TEACHER_NODES=(
+  "local|4,5|2"
+  "10.0.0.12|8,9,10,11|2|existing-teacher"
+)
+TEACHER_SHARED_ROOT=/mnt/shared/dflash2
+TEACHER_SSH_USER=your_user
 ```
 
-可用`--config /path/to/config.sh`指定另一份配置，`--smoke --dry-run`仅展示小规模计划。默认自动创建带时间戳的新任务目录；固定`RUN_DIR`时须保证它不存在。完整流程会依次执行预检、重生成、停止生成服务、预处理、教师/训练、每轮验证/保存、实际回载和清理。需要后台运行时用tmux或现有作业系统承载。
+以上是本机1组TP2＋远端2组TP2。远端默认容器、Python、模型路径可用`TEACHER_CONTAINER`、`TEACHER_PYTHON`、`TEACHER_MODEL`统一配置；每行第四项可覆盖容器名。**复用现有环境，不自动安装依赖、建容器或配置SSH凭据**。训练容器里的SSH须已能非交互连接所列主机，主机用户须能`docker exec`现有容器。
 
-成功标志是`status.json`的`stage=completed`，且`COMPLETION_VERIFICATION.json`中`passed=true`。失败查看`failure.json`、`stage_processes/*.log`、`audit/failure_rank*.json`和`cleanup_summary.json`。不要覆盖失败目录或自动重启训练。结果保留到主机挂载目录；五轮检查点需另留约每轮12GiB及数据/缓存空间。
+所有容器必须挂载同一个可读写共享目录、相同绝对路径，并具备兼容的依赖。脚本自动快照小体积代码、拆分TP组并创建新任务目录，训练阶段直接启动原生teacher；正常结束只释放本次进程。**没有认证令牌、独立网关或create_key步骤。**
 
-副本审计在第1/3/100步、此后每1000步，以及每轮保存前后和验证后执行。`audit/replica_*_rank*.json`按参数名记录模型与AdamW状态；差异明细先保存再停止，包含副本rank、张量名、最大/平均绝对误差和转成BF16后是否逐字节相同。优化器字典的遍历顺序只作诊断，不当作参数差异；数值一致性仍要求逐字节相同，不会因BF16转换掩盖差异而放行。
-
-只验证第一个epoch、但保留五轮学习率计划时，设置`EPOCHS=5`和`STOP_AFTER_EPOCH=0`。不要改成`EPOCHS=1`，也不要用`MAX_STEPS`冒充轮末停止；后者可能在原生验证前截断一轮。可通过`SCHEDULER_TOTAL_STEPS`与`SCHEDULER_WARMUP_STEPS`固定参考训练的准确调度步数。停止前仍执行epoch0的保存、验证、副本审计及回载检查。
-
-教师logits重建的最终归一化按目标模型实际`model_type`选择：Qwen3.5系列使用`1+w`增益，Qwen3使用`w`。该选择与目录名称无关，训练初始化会记录并检查实际norm类型。
+共享盘通过原生`shared_file`后端传hidden-state文件：先保存临时文件，fsync后原子重命名，trainer只读取最终文件，不使用跨机flock。HTTP传请求和文件句柄；SSH只管远端启动/退出，不传tensor。如果教师服务由平台预先启动，可用[直接HTTP接入](../teachers/README.md#预启动原生服务)，不需要trainer再SSH。详细协议与限制见[教师说明](../teachers/README.md)。
 
 <a id="from-pretrained"></a>
 
-## 5. 从官方或已有权重续训（可选）
+## 已有权重微调
 
-完成容器和依赖准备后，编辑`config.local.npu.sh`：
+在同一配置中设置`FROM_PRETRAINED=/models/your_dflash2`，其余调用不变。支持官方发布格式与原生checkpoint；原目录只读，自动适配配置并核验全部初始张量。`LR`仍使用配置中的值，请为本次微调明确设置。
 
-```bash
-TARGET_MODEL=/models/Qwen3.8-27B
-FROM_PRETRAINED=/models/Qwen3.8-27B-DFlash2
-RUN_DIR=/data/runs/qwen38_27b_finetune_01
-```
-
-`FROM_PRETRAINED`也可以指向我们保存的原生checkpoint目录，例如`/data/runs/previous/checkpoints/0`；目录必须包含实际safetensors权重和`config.json`。`RUN_DIR`使用不存在的新目录。留空`FROM_PRETRAINED`仍从随机draft开始训练。
-
-脚本按配置格式自动选择加载分支：
-
-| 来源 | 配置识别与处理 | 特征层编号 |
-|---|---|---|
-| 官方发布权重 | 从`dflash_config`和外层decoder配置生成训练配置 | 官方decoder层号加1，转换成hidden-state索引 |
-| 原生训练checkpoint | 识别`speculators_model_type=dflash2`，保留保存的`transformer_layer_config` | 原有`aux_hidden_state_layer_ids`直接使用，不再加1 |
-
-两种来源最终通过同一个原生模型加载器读入权重，并在分片前逐项核对可训练张量。无需手工改写源目录的配置文件。
-
-| 需要设置的配置 | 说明 |
-|---|---|
-| `TARGET_MODEL` | 本次在线教师使用的目标模型；目标结构、tokenizer及特征层须与draft兼容 |
-| `FROM_PRETRAINED` | 官方或原生DFlash2的初始模型权重 |
-| `LR`、`EPOCHS`、`WARMUP_RATIO` | 本次微调的新学习率计划；不会自动继承原训练计划 |
-| `FSDP_REPLICAS`、`FSDP_SHARD_SIZE`及卡号分组 | 与从零训练相同，教师另用独立空闲卡 |
-| `INPUT_FILES`或`REGENERATED_DIR` | 新题源，或同一目标模型身份校验通过的已有重生成结果 |
-
-先检查计划，再执行；使用第3步配置好的输入数据和训练预算：
-
-```bash
-bash examples/npu/04_run.sh --dry-run
-bash examples/npu/04_run.sh
-```
-
-分阶段入口同样读取`FROM_PRETRAINED`，调用方式见[第6节](#staged-run)。`REGENERATED_DIR`留空时，会先用本次目标模型重生成回答；填写已有结果时，必须保留其`REGENERATION_CONFIG.json`及目标模型身份记录。
-
-脚本为官方配置生成独立的训练视图，只读引用原始权重；官方零起点decoder层号转换成训练hidden-state索引时加1。首次更新前，所有训练rank逐项核对全部可训练张量与源权重一致，拒绝缺失张量导致的随机初始化。BF16初始权重精确展开成FP32主参数，前后向主要采用BF16，AdamW状态和梯度聚合采用FP32。
-
-此入口执行**加载已有权重后的微调**：新建AdamW与scheduler，不恢复源目录的优化器、scheduler或RNG状态。它与从中断点保留完整训练状态的恢复方式不同。官方只发布模型权重时，也无法恢复其未公开的训练状态。
+该入口新建AdamW与scheduler；不是恢复源optimizer/RNG的断点续跑。格式转换、FP32主参数与BF16计算说明见[完整细节](DETAILS.md#from-pretrained)。
 
 <a id="staged-run"></a>
 
-## 6. 分阶段运行（两种初始化方式通用）
+## 分阶段运行与结果
 
-需要分别执行预检、重生成、预处理、教师/训练和真实推理评测时，使用[分阶段说明](STAGES.md)。这些脚本共用`config.local.npu.sh`；一键入口仍保留。
+配置中填写固定的新`RUN_DIR`，依次调用：
 
 ```bash
 bash examples/npu/stages/01_preflight.sh
@@ -172,14 +76,6 @@ bash examples/npu/stages/04_train.sh
 bash examples/npu/stages/05_evaluate.sh
 ```
 
-先在配置中填写固定的新`RUN_DIR`；评测还需填写`EVAL_CASES`和支持DFlash2的`EVAL_PYTHON`。训练阶段保留每轮原生验证与回载检查；第5步另跑T=0/T=1真实推理五基准。
+前四步包括原生训练验证/保存/回载；第五步额外运行T=0和T=1真实推理五基准，需配置`EVAL_CASES`及支持DFlash2的推理环境。[各阶段说明](STAGES.md)
 
-## 7. 验证范围与参考
-
-已在910B2C既有环境通过128条重生成→2×FSDP4/512 anchors真实更新→原生验证/保存/回载→清理；另有[原1万条FSDP4流程](LEGACY_FSDP4.md)。这验证流程与容量，不是默认五轮的质量评测；BF16落盘与缺少RNG快照也不等于FP32无损恢复。
-
-已验证环境为torch2.10.0、torch_npu2.10.0.post4、vLLM0.26.0、vllm-ascend开发提交`155f68974`、CANN9.1.0；[官方rc2镜像](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc2/Dockerfile)与它并非逐字节相同，**干净镜像安装路径尚未单独完成端到端验证**，新机器请先跑smoke。安装脚本的版本检查不替代实际训练验证。
-
-[完整包版本](environment-recorded.json) · [硬件验证记录](../VALIDATION.json) · [源码说明](../PROVENANCE.md) · [返回平台选择](../README.md)
-
-2026-10-30另已验证：官方Qwen3.8-27B DFlash2权重加载→4×FSDP2/每rank512 anchors与4096 packed→3次实际更新→原生验证/保存/回载/副本审计→owned清理。8个rank的81个可训练张量均先与官方源值精确核对；以FP32主参数、BF16计算训练。使用160条已有prepared数据，没有重新生成回答；此项验证续训通路，不构成质量或接受长度提升的证据。
+成功须`COMPLETION_VERIFICATION.json: passed=true`且owned清理通过。失败查`failure.json`、阶段日志和`audit/failure_rank*.json`，保留现场，不覆盖重跑。[训练审计与验证边界](DETAILS.md) · [环境记录](environment-recorded.json) · [平台选择](../README.md)

@@ -72,10 +72,9 @@ class NpuSteps(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), before)
 
     def test_remote_only_configuration_reaches_one_command_and_train_stage(self):
-        key=self.root/'teacher.key';key.write_text('b'*64);key.chmod(0o600)
         peers=self.root/'remote_teachers.json'
         peers.write_text(json.dumps({'teachers':[{'name':'teacher_a','url':'http://teacher.internal:8395',
-                          'api_key_file':key.as_posix(),'shared_root':(self.root/'shared').as_posix()}]}))
+                          'shared_root':(self.root/'shared').as_posix()}]}))
         env={'REMOTE_TEACHERS':peers.as_posix(),'TEACHER_TP_GROUPS':''}
         plan=self.plan(extra_env=env)
         self.assertEqual(plan['config']['teacher_groups'],'');self.assertFalse(plan['commands']['teachers'])
@@ -85,6 +84,19 @@ class NpuSteps(unittest.TestCase):
         staged=json.loads(result.stdout)
         self.assertFalse(staged['commands']['teachers'])
         self.assertEqual(len(staged['commands']['remote_teachers']),1)
+
+    def test_teacher_node_array_reaches_one_command_and_train_stage(self):
+        with self.config.open('a', newline='\n') as f:
+            f.write('\nTEACHER_NODES=("local|4,5|2" "npu-b|8,9,10,11|2|legacy-container")\n')
+        env = {'TEACHER_SHARED_ROOT': self.root.as_posix()}
+        plan = self.plan(extra_env=env)
+        self.assertEqual(plan['config']['teacher_groups'], '')
+        self.assertEqual(len(plan['commands']['teacher_nodes']['nodes']), 3)
+        result = self.call('stages/04_train.sh','--config',str(self.config),'--dry-run',
+                           extra_env=dict(env,RUN_DIR=(self.root/'staged_nodes').as_posix()))
+        staged = json.loads(result.stdout)
+        self.assertEqual(staged['commands']['teacher_nodes'], plan['commands']['teacher_nodes'])
+        self.assertFalse((self.root/'staged_nodes').exists())
 
     def test_host_and_install_dry_run_are_inert(self):
         untouched = self.root / 'not_created'

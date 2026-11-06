@@ -70,6 +70,7 @@ PREPARE_WORKERS="${PREPARE_WORKERS:-8}"
 TEACHER_MAX_NUM_SEQS="${TEACHER_MAX_NUM_SEQS:-4}"
 TEACHER_MEMORY="${TEACHER_MEMORY:-0.80}"
 HIDDEN_CACHE="${HIDDEN_CACHE:-}"  # Empty = RUN_DIR/hidden_states; explicit path must not exist.
+HIDDEN_STATES_BACKEND="${HIDDEN_STATES_BACKEND:-shared_file}"
 STAGE_TIMEOUT="${STAGE_TIMEOUT:-86400}"
 
 data_args=()
@@ -79,6 +80,11 @@ else
   data_args=(--input "${INPUT_FILES[@]}")
 fi
 extra=()
+if [[ -n "${TEACHER_SHARED_ROOT:-}" ]]; then
+  extra+=(--teacher-shared-root "$TEACHER_SHARED_ROOT" --teacher-container "${TEACHER_CONTAINER:-dflash2-27b-train}"
+    --teacher-python "${TEACHER_PYTHON:-$PYTHON}" --teacher-model "${TEACHER_MODEL:-$TARGET_MODEL}"
+    --teacher-ssh-user "${TEACHER_SSH_USER:-}" --teacher-node-port "${TEACHER_NODE_PORT:-18395}")
+fi
 [[ -z "$REMOTE_TEACHERS" ]] || extra+=(--remote-teachers "$REMOTE_TEACHERS")
 [[ -z "$FROM_PRETRAINED" ]] || extra+=(--from-pretrained "$FROM_PRETRAINED")
 [[ -z "$MAX_STEPS" ]] || extra+=(--max-steps "$MAX_STEPS")
@@ -103,4 +109,4 @@ exec "$PYTHON" "$ROOT/npu/run_pipeline.py" \
   --warmup-ratio "$WARMUP_RATIO" --selector-alpha "$SELECTOR_ALPHA" --ce-weight "$CE_WEIGHT" --tv-weight "$TV_WEIGHT" \
   --gamma "$GAMMA" --noise-std "$NOISE_STD" --seed "$SEED" --workers "$WORKERS" --prefetch-factor "$PREFETCH_FACTOR" \
   --prepare-workers "$PREPARE_WORKERS" --teacher-max-num-seqs "$TEACHER_MAX_NUM_SEQS" --teacher-memory-utilization "$TEACHER_MEMORY" \
-  --stage-timeout "$STAGE_TIMEOUT" "${extra[@]}" "$@"
+  --hidden-states-backend "$HIDDEN_STATES_BACKEND" --stage-timeout "$STAGE_TIMEOUT" "${extra[@]}" "$@"

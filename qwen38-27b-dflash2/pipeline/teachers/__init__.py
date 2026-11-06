@@ -1,1 +1,1 @@
-"""Leased cross-host online teachers over an explicitly shared filesystem."""
+"""Native cross-host teachers over an explicitly shared filesystem."""

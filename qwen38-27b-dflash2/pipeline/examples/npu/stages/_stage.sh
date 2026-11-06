@@ -19,6 +19,10 @@ source "$config"
 set +a
 : "${RUN_DIR:?Set a fixed RUN_DIR in the configuration for all stage calls}"
 extra=(--stage "$stage")
+if declare -p TEACHER_NODES >/dev/null 2>&1 && [[ ${#TEACHER_NODES[@]} -gt 0 ]]; then
+  export TEACHER_TP_GROUPS=""
+  for node in "${TEACHER_NODES[@]}"; do extra+=(--teacher-node "$node"); done
+fi
 if [[ -z "${REGENERATED_DIR:-}" ]]; then
   declare -p INPUT_FILES >/dev/null 2>&1 && [[ ${#INPUT_FILES[@]} -gt 0 ]] || {
     echo 'Set INPUT_FILES or REGENERATED_DIR' >&2; exit 1;

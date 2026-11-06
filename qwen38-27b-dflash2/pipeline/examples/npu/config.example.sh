@@ -14,7 +14,20 @@ FSDP_REPLICAS="${FSDP_REPLICAS:-1}"
 FSDP_SHARD_SIZE="${FSDP_SHARD_SIZE:-4}"
 TRAIN_DEVICES="${TRAIN_DEVICES:-0,1,2,3}"
 TEACHER_TP_GROUPS="${TEACHER_TP_GROUPS-4,5}" # May be empty when REMOTE_TEACHERS is set.
-REMOTE_TEACHERS="${REMOTE_TEACHERS:-}" # Optional JSON endpoint/key-file/shared-root list; see teachers/README.md.
+REMOTE_TEACHERS="${REMOTE_TEACHERS:-}" # Optional prestarted native JSON name/url/shared_root list; see teachers/README.md.
+# Optional one-config automatic nodes. Empty = use the local TEACHER_TP_GROUPS above.
+# Each row: SSH host/IP (or local) | host physical cards | TP | existing remote container (optional).
+# All listed containers must already have the same shared mount and compatible dependencies.
+TEACHER_NODES=(
+  # "local|4,5|2"
+  # "10.0.0.12|8,9,10,11|2|existing-teacher"
+)
+TEACHER_SHARED_ROOT="${TEACHER_SHARED_ROOT:-/data/shared/dflash2}" # Identical real shared mount on every node.
+TEACHER_CONTAINER="${TEACHER_CONTAINER:-dflash2-27b-train}"
+TEACHER_PYTHON="${TEACHER_PYTHON:-$PYTHON}" # Same default path inside remote containers.
+TEACHER_MODEL="${TEACHER_MODEL:-$TARGET_MODEL}"
+TEACHER_SSH_USER="${TEACHER_SSH_USER:-}" # Optional; existing SSH alias may already specify it.
+TEACHER_NODE_PORT="${TEACHER_NODE_PORT:-18395}"
 # Regeneration runs first, then releases its devices before training.
 REGEN_TP_GROUPS="${REGEN_TP_GROUPS:-0,1;2,3;4,5;6,7}"
 GENERATION_PORT="${GENERATION_PORT:-8500}"
@@ -62,6 +75,7 @@ PREFETCH_FACTOR="${PREFETCH_FACTOR:-2}"
 PREPARE_WORKERS="${PREPARE_WORKERS:-8}"
 TEACHER_MAX_NUM_SEQS="${TEACHER_MAX_NUM_SEQS:-4}"
 TEACHER_MEMORY="${TEACHER_MEMORY:-0.80}"
+HIDDEN_STATES_BACKEND="${HIDDEN_STATES_BACKEND:-shared_file}" # Native atomic file transport; no gateway or token.
 HIDDEN_CACHE="${HIDDEN_CACHE:-}" # Empty: under RUN_DIR; explicit path must not exist.
 STAGE_TIMEOUT="${STAGE_TIMEOUT:-604800}" # Per-stage upper bound; adjust to your budget.
 

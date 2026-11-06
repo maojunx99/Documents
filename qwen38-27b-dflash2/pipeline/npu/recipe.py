@@ -35,7 +35,11 @@ def parser():
     p.add_argument('--shard-size', type=int, default=4)
     p.add_argument('--train-devices', default='8,9,10,11,12,13,14,15')
     p.add_argument('--teacher-groups', default='2,3', help='Independent TP groups separated by semicolons')
-    p.add_argument('--remote-teachers', type=Path, help='Authenticated shared-filesystem teacher JSON; may mix with local groups')
+    p.add_argument('--remote-teachers', type=Path, help='Prestarted native teacher JSON: name/url/shared_root only')
+    p.add_argument('--hidden-states-backend', choices=['file','shared_file'], default='shared_file',
+                   help='shared_file publishes complete files atomically; file retains the older local-lock backend')
+    from teachers.autodeploy import add_arguments
+    add_arguments(p)
     p.add_argument('--regeneration-groups', default='8,9;10,11;12,13;14,15')
     p.add_argument('--generation-port', type=int, default=8500)
     p.add_argument('--teacher-port', type=int, default=8360)
@@ -101,12 +105,20 @@ def parser():
 def validate(a):
     train = device_list(a.train_devices)
     from teachers.protocol import load_peers, digest
-    peers = load_peers(a.remote_teachers, require_keys=a.stage != 'evaluate')
+    peers = load_peers(a.remote_teachers)
+    from teachers.autodeploy import validate as validate_nodes
+    teacher_nodes = validate_nodes(a, train)
+    if teacher_nodes and a.hidden_cache is None:
+        import hashlib
+        tag=hashlib.sha256(str(a.run.resolve()).encode()).hexdigest()[:12]
+        a.hidden_cache=a.teacher_shared_root/(a.run.name+'_'+tag+'_hidden')
+    if peers and a.hidden_states_backend!='shared_file':
+        raise ValueError('Remote shared-disk teachers require shared_file transport')
     if a.remote_teachers:
         a.remote_teachers = a.remote_teachers.resolve()
         a.remote_teachers_sha256 = digest(a.remote_teachers)
     teachers = device_groups(a.teacher_groups) if a.teacher_groups.strip() else []
-    if not teachers and not peers:
+    if not teachers and not peers and not teacher_nodes:
         raise ValueError('At least one local or remote teacher is required')
     regen = device_groups(a.regeneration_groups)
     if a.replicas < 1 or a.shard_size < 1 or len(train) != a.replicas*a.shard_size:
@@ -166,7 +178,7 @@ def validate(a):
         raise ValueError('Target feature layer IDs are invalid for this model')
     if a.sample_max_length>a.generation_max_model_len:
         raise ValueError('Generation context must accommodate training sample cap')
-    return {'train':train,'teachers':teachers,'remote_teachers':peers,'regeneration':regen,'target_text_config':target,'draft':copy.deepcopy(draft),
+    return {'train':train,'teachers':teachers,'remote_teachers':peers,'teacher_nodes':teacher_nodes,'regeneration':regen,'target_text_config':target,'draft':copy.deepcopy(draft),
             'mesh':[list(range(i*a.shard_size,(i+1)*a.shard_size)) for i in range(a.replicas)], 'pretrained':pretrained}
 
 
@@ -194,19 +206,23 @@ def command_plan(a, resolved):
     plan['teachers']=[]
     for i,group in enumerate(resolved['teachers']):
         plan['teachers'].append([py,str(source/'scripts/launch_vllm.py'),str(a.model),'--target-layer-ids',*map(str,a.target_layer_ids),
-          '--hidden-states-path',str(hidden),'--','--tensor-parallel-size',str(len(group)),'--port',str(a.teacher_port+i),
+          '--hidden-states-backend',a.hidden_states_backend,'--hidden-states-path',str(hidden),'--','--tensor-parallel-size',str(len(group)),'--port',str(a.teacher_port+i),
           '--dtype','bfloat16','--enforce-eager','--no-enable-chunked-prefill','--gpu-memory-utilization',str(a.teacher_memory_utilization),
           '--max-num-seqs',str(a.teacher_max_num_seqs),'--max-num-batched-tokens',str(max(8192,context)),'--max-model-len',str(max(8192,context)),
           '--renderer-num-workers','1'])
     plan['router']=[py,str(ROOT/'gpu/teacher_router.py')]
     if resolved['remote_teachers']:
         plan['remote_teachers'] = resolved['remote_teachers']
+    if resolved.get('teacher_nodes'):
+        plan['teacher_nodes'] = {'nodes': resolved['teacher_nodes'], 'shared_root': str(a.teacher_shared_root),
+            'reuse_existing_containers': True, 'http_authentication': False, 'extra_gateway': False,
+            'ssh_purpose': 'remote start/stop only; no SSH tensor reads', 'accelerators_start': 'after prepare and teacher admission'}
     plan['parallel_preflight']=[py,'-m','torch.distributed.run','--standalone','--nproc_per_node',str(len(resolved['train'])),
       str(BASE/'scripts/preflight_parallel.py'),'--replicas',str(a.replicas),'--shard-size',str(a.shard_size),'--out',str(r/'preflight/parallel')]
     plan['trainer']=[py,'-m','torch.distributed.run','--standalone','--nproc_per_node',str(len(resolved['train'])),str(BASE/'scripts/run_train_parallel.py'),
       '--parallel-replicas',str(a.replicas),'--parallel-shard-size',str(a.shard_size),
       '--verifier-name-or-path',str(a.model),'--speculator-type','dflash2','--draft-config',str(r/'draft_config.json'),
-      '--draft-attn-impl','sdpa','--data-path',str(r/'prepared'),'--hidden-states-backend','file','--hidden-states-path',str(hidden),
+      '--draft-attn-impl','sdpa','--data-path',str(r/'prepared'),'--hidden-states-backend',a.hidden_states_backend,'--hidden-states-path',str(hidden),
       '--vllm-endpoint',f'http://127.0.0.1:{a.router_port}/v1','--save-path',str(r/'checkpoints'),'--log-dir',str(r/'logs'),
       '--run-name',r.name,'--block-size','8','--max-anchors',str(a.max_anchors),'--target-layer-ids',*map(str,a.target_layer_ids),
       '--mask-token-id',str(a.mask_token_id),'--conv-kernel-size','2','--conv-group-size','16','--selector-rank','256','--selector-top-k','16',

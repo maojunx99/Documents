@@ -1,10 +1,10 @@
 # Publication changes: configurable router ports and output path.
 # Publication change: workspace paths anonymized; see pipeline/PROVENANCE.md.
-"""HTTP router over local ports or explicitly admitted authenticated remote teachers.
+"""HTTP router over local ports or native remote teachers.
 
 Adapted from the 4B-line TeacherRouter (dynamic_teacher_pool.py) but simplified:
 No dynamic membership: least-active dispatch to a fixed set of TP replicas.
-Remote admission/leases and shared-file publication are managed by teachers/."""
+Native teachers publish completed shared files themselves."""
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -17,7 +17,6 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from teachers.protocol import read_key
 
 PORT = int(os.environ.get('TEACHER_ROUTER_PORT','8250'))
 if os.environ.get('TEACHER_BACKENDS_FILE'):
@@ -82,8 +81,6 @@ class Handler(BaseHTTPRequestHandler):
         code = 502
         try:
             headers = {'Content-Type': 'application/json'}
-            if backend.get('api_key_file'):
-                headers['Authorization'] = 'Bearer '+read_key(backend['api_key_file'])
             req = urllib.request.Request(backend['url'] + self.path, data=payload,
                                          method=self.command, headers=headers)
             try:
@@ -93,13 +90,6 @@ class Handler(BaseHTTPRequestHandler):
             with response:
                 content = response.read()
                 code = response.status
-                if code == 200 and self.command == 'POST' and backend.get('ready_root'):
-                    body = json.loads(content)
-                    handle = Path(body['kv_transfer_params']['hidden_states_path'])
-                    if (handle.is_symlink() or handle.parent.resolve() != Path(backend['ready_root']).resolve()
-                            or handle.suffix != '.safetensors' or not handle.is_file()
-                            or Path(str(handle)+'.lock').exists()):
-                        raise ValueError('Remote teacher returned an unpublished or unowned feature file')
                 self.send_response(code)
                 self.send_header('Content-Type', response.headers.get('Content-Type', 'application/json'))
                 self.send_header('Content-Length', str(len(content)))

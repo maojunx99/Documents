@@ -24,3 +24,6 @@ try:
     from hs_connectors.version import version as __version__
 except ImportError:
     __version__ = "unknown"
+
+# Publication adaptation: native atomic shared-filesystem transport.
+from hs_connectors.shared_file import SharedFileBackend, SharedFileTransfer

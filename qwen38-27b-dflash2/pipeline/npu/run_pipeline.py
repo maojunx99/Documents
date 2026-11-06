@@ -65,7 +65,7 @@ def main():
     assert_free('npu',all_cards)
     if a.input:assert_free('npu',[d for g in resolved['regeneration'] for d in g])
     a.run.mkdir(parents=True,exist_ok=False)
-    run=a.run;source=BASE/'source';owners=[];teacher_processes=[];completed=False;remote_client=None
+    run=a.run;source=BASE/'source';owners=[];teacher_processes=[];completed=False;remote_client=None;deployment=None
     from npu.pretrained import materialize
     materialize(a, resolved)
     cache=a.hidden_cache.resolve() if a.hidden_cache else run/'hidden_states'
@@ -199,8 +199,12 @@ def main():
             teacher_processes.append(p);health(a.teacher_port+i,p)
         from teachers.client import connect, router_environment
         remote_backends=[]
-        if resolved['remote_teachers']:
-            remote_client,remote_backends=connect(resolved['remote_teachers'],a.model,'npu',a.target_layer_ids,run/'remote_teachers',max(a.packed_tokens,a.sample_max_length)+1)
+        peers=resolved['remote_teachers']
+        if resolved.get('teacher_nodes'):
+            from teachers.autodeploy import start
+            deployment,peers=start(a,resolved,run/'teacher_deployment')
+        if peers:
+            remote_client,remote_backends=connect(peers,a.model,'npu',a.target_layer_ids,run/'remote_teachers',max(a.packed_tokens,a.sample_max_length)+1)
         router_env=dict(env,TEACHER_ROUTER_PORT=str(a.router_port),TEACHER_ROUTING_LOG=str(run/'router_routing.jsonl'),
                        **router_environment(run,[a.teacher_port+i for i in range(len(resolved['teachers']))],remote_backends))
         router=teachers.start('router',commands['router'],router_env,cwd=ROOT);health(a.router_port,router,60)
@@ -231,8 +235,13 @@ def main():
         if remote_client:
             try:remote_client.close(consumers_stopped=cleanup_error is None)
             except BaseException as exc:cleanup_error=repr(exc)
+        if deployment:
+            try:deployment.close(consumers_stopped=cleanup_error is None)
+            except BaseException as exc:cleanup_error=repr(exc)
         write(run/'cleanup_summary.json',{'passed':cleanup_error is None,'error':cleanup_error})
-        if cache.exists() and cleanup_error is None:
+        if cache.exists() and cleanup_error is None and resolved['remote_teachers'] and not deployment:
+            write(run/'hidden_cache_cleanup.json',{'preserved':str(cache),'reason':'Prestarted external teachers are not owned by this pipeline; retain files for their owner.'})
+        elif cache.exists() and cleanup_error is None:
             marker=cache/'OWNER.json'
             if marker.exists() and json.loads(marker.read_text())['run']==str(run):
                 assert cache.resolve()==(a.hidden_cache.resolve() if a.hidden_cache else run/'hidden_states')

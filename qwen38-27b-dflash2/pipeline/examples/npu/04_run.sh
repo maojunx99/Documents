@@ -26,6 +26,10 @@ mode=full
 export RUN_DIR="${RUN_DIR:-$RUN_ROOT/${mode}_$(date +%Y%m%d_%H%M%S)_$$}"
 [[ ! -e "$RUN_DIR" ]] || { echo "Run directory already exists: $RUN_DIR" >&2; exit 1; }
 extra=()
+if declare -p TEACHER_NODES >/dev/null 2>&1 && [[ ${#TEACHER_NODES[@]} -gt 0 ]]; then
+  export TEACHER_TP_GROUPS=""
+  for node in "${TEACHER_NODES[@]}"; do extra+=(--teacher-node "$node"); done
+fi
 if "$smoke"; then
   declare -p INPUT_FILES >/dev/null 2>&1 && [[ ${#INPUT_FILES[@]} -gt 0 ]] || {
     echo 'The smoke test requires raw INPUT_FILES in the configuration' >&2; exit 1;

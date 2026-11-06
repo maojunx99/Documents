@@ -371,6 +371,101 @@
       "python_files": 555,
       "command_plans": 7,
       "accelerator_jobs_started": 0
-    }
+    },
+    "status": "historical gateway candidate, superseded by native shared_file"
+  },
+  "native_shared_file_20261106": {
+    "status": "Single-host real NPU smoke and separate two-host CFS publication verified; full two-NPU-host run blocked by remote system disk.",
+    "authentication": false,
+    "extra_http_gateway": false,
+    "native_atomic_writer": true,
+    "multi_host_npu_verified": false,
+    "mooncake_npu": {
+      "package": "mooncake-transfer-engine-npu 0.3.11.post1",
+      "bounded_import_probe": "Process aborts at exit with heap-corruption message, both with and without torch imported first.",
+      "production_environment_modified": false,
+      "priority": "Use and validate shared_file first."
+    },
+    "cpu_checks": {
+      "linux": {
+        "tests": 48,
+        "passed": true,
+        "skipped": 0
+      },
+      "windows": {
+        "tests": 48,
+        "passed": true,
+        "skipped_linux_only": 2
+      },
+      "shell_syntax_checked": true,
+      "file_hashes": 711,
+      "python_files": 562,
+      "command_plans": 7,
+      "runtime_python_ast_matches_deployed_npu_candidate": 553
+    },
+    "hardware_checks": {
+      "platform": "Ascend910B2C",
+      "reused_existing_container": true,
+      "new_images_or_containers_created": 0,
+      "rows": 160,
+      "answers_regenerated": false,
+      "fsdp_replicas": 1,
+      "fsdp_shard_size": 4,
+      "anchors_per_rank": 512,
+      "packed_tokens_per_rank": 4096,
+      "native_teacher_groups": 2,
+      "teacher_tp": 2,
+      "optimizer_steps_per_rank": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "initial_trainable_tensors": 81,
+      "initial_optimizer_empty": true,
+      "native_validation_batches_per_rank": 5,
+      "checkpoint_model_optimizer_reload_all_ranks": true,
+      "all_router_http200": true,
+      "router_requests": 97,
+      "owned_identity_records_checked": 41,
+      "owned_processes_exited": true,
+      "feature_cache_removed": true,
+      "peak_allocated_GiB": 32.245452,
+      "peak_reserved_GiB": 52.617188,
+      "quality_evaluation": false,
+      "full_epoch_training": false
+    },
+    "cross_host_filesystem": {
+      "writer": "NPU host 253",
+      "reader": "H200 host",
+      "reference_payload": "BF16 safetensors, 256 token IDs, six layers, width8; CPU reference tensor, not a second NPU trainer",
+      "bytes": 26800,
+      "partial_not_visible": true,
+      "exact_bytes_and_tokens_finite": true,
+      "flock_used": false,
+      "passed": true
+    },
+    "evidence_archive_sha256": "866afa8d279ac15c4ef26229de8865ee6246f81a59cfe5e0f561097e080b698e",
+    "verified_runtime_python_ast_files": 553,
+    "temporary_checkpoint_cleanup": {
+      "unused_random_3step_checkpoints_removed": true,
+      "bytes_removed": 11546525423,
+      "reload_and_light_evidence_verified_before_removal": true,
+      "original_target_and_prior_checkpoints_untouched": true
+    },
+    "blocker": {
+      "host": "243",
+      "system_root_free_bytes": 20480,
+      "docker_exec": "cannot start while system root is full",
+      "docker_data_partition": "separate partition with free capacity",
+      "current_user_has_sudo": false
+    },
+    "limitations": [
+      "This is a bounded workflow smoke, not a quality or full-epoch result.",
+      "Real NPU training used one host; shared-file publication was separately checked across two hosts.",
+      "New automatic SSH deployment to 243 and a full two-NPU-host training smoke remain unverified due to the remote root filesystem being full.",
+      "GPU shared_file writer matches the NPU adapter source and has CPU plan coverage; this iteration did not run new GPU training.",
+      "Native BF16 checkpoints lack RNG state and are not lossless FP32 resume."
+    ]
   }
 }

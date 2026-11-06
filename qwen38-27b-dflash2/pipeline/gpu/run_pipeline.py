@@ -23,7 +23,7 @@ def main():
     p.add_argument('--run', type=Path, required=True, help='A new, nonexistent directory')
     p.add_argument('--python', default=sys.executable)
     p.add_argument('--teacher-devices', default='0,1,2,3')
-    p.add_argument('--remote-teachers', type=Path, help='Remote shared-filesystem teacher JSON')
+    p.add_argument('--remote-teachers', type=Path, help='Prestarted native shared_file teachers: name/url/shared_root')
     p.add_argument('--train-devices', default='4,5,6,7')
     p.add_argument('--router-port', type=int, default=8250)
     p.add_argument('--teacher-base-port', type=int, default=8260)
@@ -35,6 +35,7 @@ def main():
     trainers = [int(x) for x in a.train_devices.split(',')]
     from teachers.protocol import load_peers
     peers = load_peers(a.remote_teachers)
+    transfer_backend = 'shared_file' if peers else 'file'
     if (len(trainers) != 4 or len(set(teachers + trainers)) != len(teachers)+4
             or not (teachers or peers) or any(x < 0 for x in teachers+trainers)):
         p.error('Require four DDP trainers, disjoint local TP1 teachers and/or remote teachers')
@@ -55,7 +56,7 @@ def main():
              '--dflash-decay-gamma', '4', '--per-position-loss-weight', 'fixed-exp-decay', '--selector-loss-alpha', '.1',
              '--optimizer', 'adamw', '--lr', '.0006', '--weight-decay', '0', '--scheduler-type', 'cosine',
              '--scheduler-warmup-ratio', '.04', '--epochs', '5', '--total-seq-len', '8192', '--train-data-ratio', '.99',
-             '--noise-std', '.05', '--seed', '42', '--hidden-states-dtype', 'bfloat16', '--hidden-states-backend', 'file',
+             '--noise-std', '.05', '--seed', '42', '--hidden-states-dtype', 'bfloat16', '--hidden-states-backend', transfer_backend,
              '--hidden-states-path', str(a.run / 'hidden_states'), '--num-workers', '12', '--prefetch-factor', '4',
              '--on-missing', 'generate', '--on-generate', 'delete', '--request-timeout', '600', '--max-retries', '3',
              '--checkpoint-freq', '1', '--save-best', '--no-resume-from-checkpoint']
@@ -64,7 +65,7 @@ def main():
     teacher_commands = []
     for i, _ in enumerate(teachers):
         teacher_commands.append([a.python, str(source / 'scripts/launch_vllm.py'), str(a.model),
-                                 '--target-layer-ids', '6', '20', '34', '48', '62', '--hidden-states-backend', 'file',
+                                 '--target-layer-ids', '6', '20', '34', '48', '62', '--hidden-states-backend', transfer_backend,
                                  '--hidden-states-path', str(a.run / 'hidden_states'),
                                  '--provenance-dir', str(a.run / f'teacher{i}_provenance'), '--',
                                  '--tensor-parallel-size', '1', '--dtype', 'bfloat16', '--max-model-len', '16384',
@@ -156,7 +157,7 @@ def main():
                 write(a.run/'failure.json', {'traceback':traceback.format_exc(), 'phase':'remote_cleanup'})
                 raise
     if result is not None:
-        write(a.run/'COMPLETION.json', dict(result, owned_processes_released=True, remote_cleanup_verified=True))
+        write(a.run/'COMPLETION.json', dict(result, owned_processes_released=True, external_teachers_owned=False))
 
 
 if __name__ == '__main__':
