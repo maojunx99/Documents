@@ -60,9 +60,12 @@ vi config.local.npu.sh
 | `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 单样本上限、packed预算、每rank packed批次共享的anchors上限 |
 | `EPOCHS`、`LR`、`WARMUP_RATIO`、`SELECTOR_ALPHA` | 训练轮数、学习率、warmup和selector损失权重 |
 | `FROM_PRETRAINED` | 可选的官方/原生DFlash2权重目录；留空则随机初始化 |
+| `REMOTE_TEACHERS` | 可选远端teacher列表JSON；`TEACHER_TP_GROUPS=""`表示仅用远端teacher |
 | `RUN_ROOT`、`RUN_DIR`、`STAGE_TIMEOUT` | 结果位置、新任务目录、每阶段时间上限 |
 
 默认FSDP4使用0～3卡、在线教师TP2使用4/5卡；重生成阶段先用4个TP2覆盖0～7卡，退出后再进入训练。2×FSDP4需要8张训练卡，**教师另需独立卡**；所有分组均可配置，改变卡数不会自动调整学习率。
+
+teacher也可使用其他机器上的空闲卡，见[多机器teacher说明](../teachers/README.md)。一键与分阶段入口均支持，本地/远端可混用；需要同路径挂载的共享存储、独立认证网关及目标/源码身份核验。
 
 题源每行需含`messages`或`conversations`；已有assistant回答会重新生成。默认T1/p.95/k20/presence1.5/xhigh、输出上限8192，客户端不额外添加system prompt。训练默认单样本/packed4096、512 anchors、5轮、CE.1＋TV.9、selector alpha.1、AdamW6e-4/WD0。
 

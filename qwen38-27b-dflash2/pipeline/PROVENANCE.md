@@ -1,5 +1,15 @@
 # 源码与公开整理说明
 
+## 2026-11-06：多机器在线teacher公开入口
+
+新增`teachers/`，把2026-10-19在两台A2上运行过的“同机等待writer完成、校验完整文件、共享存储原子发布”方案整理为独立模块。GPU、NPU一键入口和NPU分阶段入口都支持远端teacher列表、本地/远端混用及仅远端模式；原生损失、训练循环、anchors与并行参数没有改变。
+
+各teacher机器显式启动一次专用服务，trainer按配置认领；不包含私有SSH、密码、机器地址或现有服务接管代码。新协议比对目标权重/tokenizer完整SHA、训练源码及网关源码、包版本、特征层和共享目录，实际hidden探针通过后才加入固定router。原生服务只绑定loopback，网关认证值只从私有文件读取。生产者本机处理flock；trainer仅收到完成后的共享文件路径。
+
+新增租约、独立CPU guardian、目标/源码收尾审计和远端清理收据。异常时保留文件与证据，不丢训练样本、不自动重训；本公开版本没有引入历史任务的运行中热接入或自动本地回退。旧单机配置和旧router端口环境变量仍可使用。共享存储方案的带宽成本保留，不承诺线性加速。
+
+新增测试只使用CPU模拟原生teacher和真实Linux进程/文件锁，验证HTTP并发、token/文件完整性、身份/认证拒绝、租约与owned清理；没有用本次公开入口重新启动多机加速卡训练。历史硬件实跑与本次CPU通过分开记录在`VALIDATION.json`和`teachers/README.md`。
+
 ## 已有实现
 
 - 上游项目：[vllm-project/speculators](https://github.com/vllm-project/speculators)。本目录包括本地适配，不能只用上游commit或pip版本替代这些源码。

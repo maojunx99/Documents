@@ -12,6 +12,7 @@ import urllib.request
 
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE.parent / 'common'))
+sys.path.insert(0, str(BASE.parent))
 from managed import OwnedProcesses, assert_free, source_environment, write
 
 
@@ -22,6 +23,7 @@ def main():
     p.add_argument('--run', type=Path, required=True, help='A new, nonexistent directory')
     p.add_argument('--python', default=sys.executable)
     p.add_argument('--teacher-devices', default='0,1,2,3')
+    p.add_argument('--remote-teachers', type=Path, help='Remote shared-filesystem teacher JSON')
     p.add_argument('--train-devices', default='4,5,6,7')
     p.add_argument('--router-port', type=int, default=8250)
     p.add_argument('--teacher-base-port', type=int, default=8260)
@@ -29,10 +31,13 @@ def main():
     p.add_argument('--dry-run', action='store_true')
     a = p.parse_args()
     source = BASE / 'source'
-    teachers = [int(x) for x in a.teacher_devices.split(',')]
+    teachers = [int(x) for x in a.teacher_devices.split(',') if x.strip()]
     trainers = [int(x) for x in a.train_devices.split(',')]
-    if len(teachers) != 4 or len(trainers) != 4 or len(set(teachers + trainers)) != 8:
-        p.error('The recorded recipe requires four disjoint TP1 teachers and four DDP trainers')
+    from teachers.protocol import load_peers
+    peers = load_peers(a.remote_teachers)
+    if (len(trainers) != 4 or len(set(teachers + trainers)) != len(teachers)+4
+            or not (teachers or peers) or any(x < 0 for x in teachers+trainers)):
+        p.error('Require four DDP trainers, disjoint local TP1 teachers and/or remote teachers')
     shards = sorted(a.data_dir.glob('*_out.jsonl'))
     if not shards and not a.dry_run:
         p.error('No *_out.jsonl data files found')
@@ -65,7 +70,7 @@ def main():
                                  '--tensor-parallel-size', '1', '--dtype', 'bfloat16', '--max-model-len', '16384',
                                  '--mm-processor-cache-gb', '0', '--port', str(a.teacher_base_port+i)])
     if a.dry_run:
-        print(json.dumps({'prepare': prepare, 'teachers': teacher_commands, 'train': train}, indent=2))
+        print(json.dumps({'prepare': prepare, 'teachers': teacher_commands, 'remote_teachers': peers, 'train': train}, indent=2))
         return
     assert_free('gpu', teachers + trainers)
     a.run.mkdir(parents=True, exist_ok=False)
@@ -74,10 +79,15 @@ def main():
     write(a.run / 'PIPELINE_CONFIG.json', {'model': str(a.model), 'raw_inputs': [str(x) for x in shards],
           'sample_cap': 4096, 'packed_per_rank': 8192, 'anchors': 1024, 'epochs': 5,
           'teacher_devices': teachers, 'training_devices': trainers, 'smoke_max_steps': a.max_steps,
+          'remote_teachers': peers,
+          'remote_config_sha256': hashlib.sha256(a.remote_teachers.read_bytes()).hexdigest() if a.remote_teachers else None,
           'initialization': 'Random draft; frozen target embedding/head; no existing draft checkpoint'})
     write(a.run / 'SOURCE_MANIFEST.json', {str(x.relative_to(source)): hashlib.sha256(x.read_bytes()).hexdigest()
           for x in source.rglob('*') if x.is_file() and '__pycache__' not in x.parts})
     owned = OwnedProcesses(a.run)
+    remote_client = None
+    teacher_workers = []
+    result = None
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     try:
         owned.run_checked('prepare', prepare, env, source)
@@ -85,6 +95,7 @@ def main():
             teacher_env = env.copy()
             teacher_env['CUDA_VISIBLE_DEVICES'] = str(device)
             worker = owned.start(f'teacher{i}', cmd, teacher_env, source)
+            teacher_workers.append(worker)
             deadline = time.monotonic() + 1200
             while True:
                 if worker.poll() is not None:
@@ -97,9 +108,12 @@ def main():
                 if time.monotonic() > deadline:
                     raise TimeoutError('Teacher readiness')
                 time.sleep(3)
-        router_env = env.copy()
+        from teachers.client import connect, router_environment
+        remote_backends = []
+        if peers:
+            remote_client, remote_backends = connect(peers, a.model, 'gpu', [6,20,34,48,62], a.run/'remote_teachers', 8193)
+        router_env = dict(env, **router_environment(a.run, [a.teacher_base_port+i for i in range(len(teachers))], remote_backends))
         router_env.update(TEACHER_ROUTER_PORT=str(a.router_port),
-                          TEACHER_BACKEND_PORTS=','.join(str(a.teacher_base_port+i) for i in range(4)),
                           TEACHER_ROUTING_LOG=str(a.run / 'router_routing.jsonl'))
         router = owned.start('router', [a.python, str(BASE / 'teacher_router.py')], router_env)
         for _ in range(30):
@@ -114,18 +128,35 @@ def main():
             raise TimeoutError('Teacher router readiness')
         training_env = env.copy()
         training_env['CUDA_VISIBLE_DEVICES'] = a.train_devices
-        owned.run_checked('trainer', train, training_env, source)
+        trainer = owned.start('trainer', train, training_env, source)
+        while trainer.poll() is None:
+            if remote_client: remote_client.check()
+            if router.poll() is not None: raise RuntimeError('Teacher router exited')
+            if any(worker.poll() is not None for worker in teacher_workers): raise RuntimeError('Local teacher exited')
+            time.sleep(.5)
+        if trainer.returncode: raise RuntimeError('Trainer failed; inspect trainer.log')
         checkpoints = sorted(str(x) for x in (a.run / 'checkpoints').rglob('model.safetensors'))
         if not checkpoints:
             raise RuntimeError('Trainer exited without a checkpoint')
-        write(a.run / 'COMPLETION.json', {'native_train_exit': 0, 'checkpoints': checkpoints,
+        result = {'native_train_exit': 0, 'checkpoints': checkpoints,
               'smoke': a.max_steps is not None, 'validation': 'Native trainer validates at each completed epoch',
-              'checkpoint_limit': 'Native BF16 serialization and no RNG snapshot; not lossless FP32 resume'})
+              'checkpoint_limit': 'Native BF16 serialization and no RNG snapshot; not lossless FP32 resume'}
     except BaseException:
         write(a.run / 'failure.json', {'traceback': traceback.format_exc()})
         raise
     finally:
-        owned.close()
+        try:
+            owned.close()
+        except BaseException:
+            if remote_client: remote_client.close(consumers_stopped=False)
+            raise
+        if remote_client:
+            try: remote_client.close(consumers_stopped=True)
+            except BaseException:
+                write(a.run/'failure.json', {'traceback':traceback.format_exc(), 'phase':'remote_cleanup'})
+                raise
+    if result is not None:
+        write(a.run/'COMPLETION.json', dict(result, owned_processes_released=True, remote_cleanup_verified=True))
 
 
 if __name__ == '__main__':

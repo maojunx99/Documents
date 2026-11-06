@@ -13,7 +13,8 @@ REGENERATED_DIR="${REGENERATED_DIR:-}" # Optional same-target verified shards; s
 FSDP_REPLICAS="${FSDP_REPLICAS:-1}"
 FSDP_SHARD_SIZE="${FSDP_SHARD_SIZE:-4}"
 TRAIN_DEVICES="${TRAIN_DEVICES:-0,1,2,3}"
-TEACHER_TP_GROUPS="${TEACHER_TP_GROUPS:-4,5}"
+TEACHER_TP_GROUPS="${TEACHER_TP_GROUPS-4,5}" # May be empty when REMOTE_TEACHERS is set.
+REMOTE_TEACHERS="${REMOTE_TEACHERS:-}" # Optional JSON endpoint/key-file/shared-root list; see teachers/README.md.
 # Regeneration runs first, then releases its devices before training.
 REGEN_TP_GROUPS="${REGEN_TP_GROUPS:-0,1;2,3;4,5;6,7}"
 GENERATION_PORT="${GENERATION_PORT:-8500}"

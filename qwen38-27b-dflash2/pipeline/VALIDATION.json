@@ -313,5 +313,64 @@
     "native_hidden_state_indices_not_shifted_again": true,
     "decoder_config_and_source_config_preserved": true,
     "scope": "CPU real-weight loading checks through the training model builder; no new NPU optimizer steps. Official full NPU 3-step integration is recorded separately."
+  },
+  "cross_host_teacher_public_entry_20261106": {
+    "date": "2026-11-06",
+    "scope": "New public shared-filesystem teacher orchestration; native trainer/loss implementations unchanged.",
+    "supported": [
+      "GPU trainer/GPU teachers",
+      "NPU trainer/NPU teachers",
+      "local+remote or remote-only fixed pools",
+      "NPU all-in-one and separate train stage"
+    ],
+    "historical_hardware_reference": {
+      "date": "2026-10-19",
+      "trainer_hosts": 1,
+      "teacher_hosts": 2,
+      "local_tp2_teachers": 3,
+      "remote_tp2_teachers": 1,
+      "public_entry_retested_on_accelerators": false
+    },
+    "cpu_checks": {
+      "two_simulated_http_teachers": true,
+      "concurrent_router_and_exact_input_bytes": true,
+      "atomic_complete_file_publication": true,
+      "BF16_schema_token_and_finite_probes": true,
+      "wrong_identity_authentication_and_owner_rejected": true,
+      "target_changes_block_completion": true,
+      "lease_expiry_preserves_cache": true,
+      "npu_shell_remote_only_and_stage_forwarding": true,
+      "gpu_remote_only_dry_run": true
+    },
+    "linux_checks": {
+      "producer_local_flock": true,
+      "actual_guardian_owner_death_cleanup": true,
+      "unrelated_cpu_process_preserved": true,
+      "native_exec_orphan_identity_cleanup": true
+    },
+    "accelerator_jobs_started": 0,
+    "new_multihost_accelerator_training_verified": false,
+    "limitations": [
+      "Shared filesystem must be mounted at identical absolute paths.",
+      "One fixed TP service per explicit remote job; no SSH automation, hot membership, or automatic local fallback.",
+      "Package/source/target checks and finite probes do not imply bitwise hidden-state determinism.",
+      "New public entry still requires a bounded real multihost training smoke on the destination environment."
+    ],
+    "bundle_checks": {
+      "windows": {
+        "tests": 51,
+        "skipped_linux_only": 3,
+        "passed": true
+      },
+      "linux": {
+        "tests": 51,
+        "skipped": 0,
+        "passed": true
+      },
+      "file_hashes": 704,
+      "python_files": 555,
+      "command_plans": 7,
+      "accelerator_jobs_started": 0
+    }
   }
 }

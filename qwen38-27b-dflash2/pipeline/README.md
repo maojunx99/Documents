@@ -13,6 +13,8 @@ NPU支持可配置的x×FSDPy；GPU保留4张训练卡DDP4＋4个TP1教师的基
 
 NPU默认[从零预训练草稿模型](npu/README.md#from-scratch)，`FROM_PRETRAINED`留空；如果要加载官方或已有草稿权重，再选择[已有权重续训](npu/README.md#from-pretrained)。容器、依赖和配置准备共用，且都保留[分阶段入口](npu/README.md#staged-run)。
 
+在线teacher需要分布在其他机器时，见[多机器teacher部署](teachers/README.md)。支持本地/远端混用或仅远端teacher，通过共享文件系统传输hidden states；各teacher的TP大小独立配置，trainer仍在单机运行。
+
 - [验证记录](VALIDATION.json)：区分硬件实测、CPU检查和尚未验证的范围。
 - [源码与修改说明](PROVENANCE.md)：版本、适配范围及许可证来源。
 - `check_bundle.py`：无设备的文件完整性、语法和命令规划检查。

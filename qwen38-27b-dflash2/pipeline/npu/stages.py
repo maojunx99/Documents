@@ -84,7 +84,7 @@ def stage_plan(a, resolved, commands):
               'rank_mesh': resolved['mesh'], 'requires': None if a.stage == 'preflight' else ORDER[ORDER.index(a.stage)-1],
               'no_devices_or_files_created': True}
     keys = {'preflight': ['parallel_preflight'], 'regenerate': ['generation_server', 'regeneration'],
-            'prepare': ['prepare'], 'train': ['teachers', 'router', 'trainer']}
+            'prepare': ['prepare'], 'train': ['teachers', 'remote_teachers', 'router', 'trainer']}
     if a.stage == 'evaluate':
         from evaluation.run import plan
         result['evaluation'] = plan(a, inspect_checkpoint=False)
@@ -102,6 +102,7 @@ class Stage:
         self.folder = self.run / 'stages' / a.stage
         self.owners, self.live, self.products = [], [], []
         self.cache = None
+        self.remote_client = None
         self.env = source_environment(BASE / 'source', {
             'TORCHDYNAMO_DISABLE': '1', 'TASK_QUEUE_ENABLE': '1', 'OMP_NUM_THREADS': '2',
             'HCCL_EXEC_TIMEOUT': '600', 'HCCL_CONNECT_TIMEOUT': '180',
@@ -126,6 +127,8 @@ class Stage:
                 raise TimeoutError(name + ' exceeded stage-timeout')
             if any(p.poll() is not None for p in self.live):
                 raise RuntimeError('A required service exited during ' + name)
+            if self.remote_client:
+                self.remote_client.check()
             time.sleep(.5)
         if process.returncode:
             raise RuntimeError(name + ' failed; inspect ' + str(owner.run))
@@ -258,9 +261,14 @@ class Stage:
                             VLLM_PORT=str(a.teacher_port+1000+100*i)), cwd=BASE / 'source')
             self.live.append(process)
             health(a.teacher_port+i, process)
+        from teachers.client import connect, router_environment
+        remote_backends = []
+        if r.get('remote_teachers'):
+            self.remote_client, remote_backends = connect(r['remote_teachers'], a.model, 'npu', a.target_layer_ids,
+                                                          self.run/'remote_teachers', max(a.packed_tokens,a.sample_max_length)+1)
         env = dict(self.env, TEACHER_ROUTER_PORT=str(a.router_port),
-                   TEACHER_BACKEND_PORTS=','.join(str(a.teacher_port+i) for i in range(len(r['teachers']))),
-                   TEACHER_ROUTING_LOG=str(self.run / 'router_routing.jsonl'))
+                   TEACHER_ROUTING_LOG=str(self.run / 'router_routing.jsonl'),
+                   **router_environment(self.run, [a.teacher_port+i for i in range(len(r['teachers']))], remote_backends))
         router = teachers.start('router', self.commands['router'], env, cwd=ROOT)
         self.live.append(router)
         health(a.router_port, router, 60)
@@ -277,6 +285,11 @@ class Stage:
         for owner in reversed(self.owners):
             try:
                 owner.close()
+            except BaseException as exc:
+                errors.append(repr(exc))
+        if self.remote_client:
+            try:
+                self.remote_client.close(consumers_stopped=not errors)
             except BaseException as exc:
                 errors.append(repr(exc))
         if errors:

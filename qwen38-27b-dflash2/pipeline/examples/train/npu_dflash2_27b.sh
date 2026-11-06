@@ -24,7 +24,8 @@ FSDP_SHARD_SIZE="${FSDP_SHARD_SIZE:-4}"
 TRAIN_DEVICES="${TRAIN_DEVICES:-8,9,10,11,12,13,14,15}"
 # Semicolons separate independent TP services; commas are cards within each service.
 REGEN_TP_GROUPS="${REGEN_TP_GROUPS:-8,9;10,11;12,13;14,15}"
-TEACHER_TP_GROUPS="${TEACHER_TP_GROUPS:-2,3}"
+TEACHER_TP_GROUPS="${TEACHER_TP_GROUPS-2,3}"
+REMOTE_TEACHERS="${REMOTE_TEACHERS:-}"
 # Generation services are stopped before training; those cards may be reused.
 GENERATION_PORT="${GENERATION_PORT:-8500}"
 TEACHER_PORT="${TEACHER_PORT:-8360}"
@@ -78,6 +79,7 @@ else
   data_args=(--input "${INPUT_FILES[@]}")
 fi
 extra=()
+[[ -z "$REMOTE_TEACHERS" ]] || extra+=(--remote-teachers "$REMOTE_TEACHERS")
 [[ -z "$FROM_PRETRAINED" ]] || extra+=(--from-pretrained "$FROM_PRETRAINED")
 [[ -z "$MAX_STEPS" ]] || extra+=(--max-steps "$MAX_STEPS")
 [[ -z "$STOP_AFTER_EPOCH" ]] || extra+=(--stop-after-epoch "$STOP_AFTER_EPOCH")

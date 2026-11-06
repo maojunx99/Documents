@@ -50,6 +50,8 @@ $PY gpu/run_pipeline.py \
 
 入口执行预处理、4个TP1在线教师及路由、DDP4训练、每轮原生验证/检查点与进程清理；拒绝已有输出目录和被占用设备。草稿随机初始化，不自动加载旧草稿或优化器。
 
+需要多机器teacher时，增加`--remote-teachers /path/to/remote_teachers.json`。`--teacher-devices ""`表示仅使用远端teacher，也可保留若干本机TP1教师混用；trainer仍是单机DDP4。各远端TP分组、共享存储、认证及运行步骤见[多机器teacher说明](../teachers/README.md)。
+
 | 参数 | 基础配方 |
 |---|---|
 | 结构 | 5层；特征层6/20/34/48/62；block8/spec7；selector rank256/top16 |

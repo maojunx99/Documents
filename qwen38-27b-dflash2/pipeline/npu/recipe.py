@@ -35,6 +35,7 @@ def parser():
     p.add_argument('--shard-size', type=int, default=4)
     p.add_argument('--train-devices', default='8,9,10,11,12,13,14,15')
     p.add_argument('--teacher-groups', default='2,3', help='Independent TP groups separated by semicolons')
+    p.add_argument('--remote-teachers', type=Path, help='Authenticated shared-filesystem teacher JSON; may mix with local groups')
     p.add_argument('--regeneration-groups', default='8,9;10,11;12,13;14,15')
     p.add_argument('--generation-port', type=int, default=8500)
     p.add_argument('--teacher-port', type=int, default=8360)
@@ -99,7 +100,14 @@ def parser():
 
 def validate(a):
     train = device_list(a.train_devices)
-    teachers = device_groups(a.teacher_groups)
+    from teachers.protocol import load_peers, digest
+    peers = load_peers(a.remote_teachers, require_keys=a.stage != 'evaluate')
+    if a.remote_teachers:
+        a.remote_teachers = a.remote_teachers.resolve()
+        a.remote_teachers_sha256 = digest(a.remote_teachers)
+    teachers = device_groups(a.teacher_groups) if a.teacher_groups.strip() else []
+    if not teachers and not peers:
+        raise ValueError('At least one local or remote teacher is required')
     regen = device_groups(a.regeneration_groups)
     if a.replicas < 1 or a.shard_size < 1 or len(train) != a.replicas*a.shard_size:
         raise ValueError('len(train-devices) must equal replicas*shard-size, with both positive')
@@ -158,7 +166,7 @@ def validate(a):
         raise ValueError('Target feature layer IDs are invalid for this model')
     if a.sample_max_length>a.generation_max_model_len:
         raise ValueError('Generation context must accommodate training sample cap')
-    return {'train':train,'teachers':teachers,'regeneration':regen,'target_text_config':target,'draft':copy.deepcopy(draft),
+    return {'train':train,'teachers':teachers,'remote_teachers':peers,'regeneration':regen,'target_text_config':target,'draft':copy.deepcopy(draft),
             'mesh':[list(range(i*a.shard_size,(i+1)*a.shard_size)) for i in range(a.replicas)], 'pretrained':pretrained}
 
 
@@ -191,6 +199,8 @@ def command_plan(a, resolved):
           '--max-num-seqs',str(a.teacher_max_num_seqs),'--max-num-batched-tokens',str(max(8192,context)),'--max-model-len',str(max(8192,context)),
           '--renderer-num-workers','1'])
     plan['router']=[py,str(ROOT/'gpu/teacher_router.py')]
+    if resolved['remote_teachers']:
+        plan['remote_teachers'] = resolved['remote_teachers']
     plan['parallel_preflight']=[py,'-m','torch.distributed.run','--standalone','--nproc_per_node',str(len(resolved['train'])),
       str(BASE/'scripts/preflight_parallel.py'),'--replicas',str(a.replicas),'--shard-size',str(a.shard_size),'--out',str(r/'preflight/parallel')]
     plan['trainer']=[py,'-m','torch.distributed.run','--standalone','--nproc_per_node',str(len(resolved['train'])),str(BASE/'scripts/run_train_parallel.py'),

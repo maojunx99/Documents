@@ -14,3 +14,5 @@ prepared/
 *.arrow
 .env
 config.local.*
+*.key
+remote_teachers.local.json

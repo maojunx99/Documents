@@ -71,6 +71,21 @@ class NpuSteps(unittest.TestCase):
         self.call('03_configure.sh', '--output', str(self.config))
         self.assertEqual(self.config.read_bytes(), before)
 
+    def test_remote_only_configuration_reaches_one_command_and_train_stage(self):
+        key=self.root/'teacher.key';key.write_text('b'*64);key.chmod(0o600)
+        peers=self.root/'remote_teachers.json'
+        peers.write_text(json.dumps({'teachers':[{'name':'teacher_a','url':'http://teacher.internal:8395',
+                          'api_key_file':key.as_posix(),'shared_root':(self.root/'shared').as_posix()}]}))
+        env={'REMOTE_TEACHERS':peers.as_posix(),'TEACHER_TP_GROUPS':''}
+        plan=self.plan(extra_env=env)
+        self.assertEqual(plan['config']['teacher_groups'],'');self.assertFalse(plan['commands']['teachers'])
+        self.assertEqual(len(plan['commands']['remote_teachers']),1)
+        result=self.call('stages/04_train.sh','--config',str(self.config),'--dry-run',
+                         extra_env=dict(env,RUN_DIR=(self.root/'staged_new').as_posix()))
+        staged=json.loads(result.stdout)
+        self.assertFalse(staged['commands']['teachers'])
+        self.assertEqual(len(staged['commands']['remote_teachers']),1)
+
     def test_host_and_install_dry_run_are_inert(self):
         untouched = self.root / 'not_created'
         result = self.call('01_container.sh', '--dry-run', extra_env={

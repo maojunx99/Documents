@@ -43,6 +43,7 @@ def protected_files(source):
     paths+=list(BASE.glob('*.py'))+list((BASE/'scripts').glob('*.py'))
     paths+=list((ROOT/'common').glob('*.py'))+list((ROOT/'regeneration').glob('*.py'))
     paths+=[ROOT/'gpu/teacher_router.py']
+    paths+=list((ROOT/'teachers').glob('*.py'))
     return {str(p):sha(p) for p in paths if '__pycache__' not in p.parts}
 
 
@@ -64,7 +65,7 @@ def main():
     assert_free('npu',all_cards)
     if a.input:assert_free('npu',[d for g in resolved['regeneration'] for d in g])
     a.run.mkdir(parents=True,exist_ok=False)
-    run=a.run;source=BASE/'source';owners=[];teacher_processes=[];completed=False
+    run=a.run;source=BASE/'source';owners=[];teacher_processes=[];completed=False;remote_client=None
     from npu.pretrained import materialize
     materialize(a, resolved)
     cache=a.hidden_cache.resolve() if a.hidden_cache else run/'hidden_states'
@@ -97,6 +98,7 @@ def main():
         while p.poll() is None:
             if time.monotonic()>deadline:raise TimeoutError(name+' exceeded stage-timeout')
             if any(t.poll() is not None for t in teacher_processes):raise RuntimeError('A live teacher exited')
+            if remote_client:remote_client.check()
             time.sleep(2)
         if p.returncode:raise RuntimeError(name+' failed; inspect its log')
         return p
@@ -195,8 +197,12 @@ def main():
             p=teachers.start(f'server{i}',cmd,dict(env,ASCEND_RT_VISIBLE_DEVICES=','.join(map(str,group)),
                 VLLM_PORT=str(a.teacher_port+1000+100*i)),cwd=source)
             teacher_processes.append(p);health(a.teacher_port+i,p)
-        router_env=dict(env,TEACHER_ROUTER_PORT=str(a.router_port),TEACHER_BACKEND_PORTS=','.join(str(a.teacher_port+i) for i in range(len(resolved['teachers']))),
-                        TEACHER_ROUTING_LOG=str(run/'router_routing.jsonl'))
+        from teachers.client import connect, router_environment
+        remote_backends=[]
+        if resolved['remote_teachers']:
+            remote_client,remote_backends=connect(resolved['remote_teachers'],a.model,'npu',a.target_layer_ids,run/'remote_teachers',max(a.packed_tokens,a.sample_max_length)+1)
+        router_env=dict(env,TEACHER_ROUTER_PORT=str(a.router_port),TEACHER_ROUTING_LOG=str(run/'router_routing.jsonl'),
+                       **router_environment(run,[a.teacher_port+i for i in range(len(resolved['teachers']))],remote_backends))
         router=teachers.start('router',commands['router'],router_env,cwd=ROOT);health(a.router_port,router,60)
         stage('training',replicas=a.replicas,shard_size=a.shard_size,world_size=a.replicas*a.shard_size)
         checked('trainer',commands['trainer'],train_env)
@@ -222,6 +228,9 @@ def main():
             cleanup=owner.run/'cleanup.json'
             if not cleanup.exists() or any(v['remaining'] for v in json.loads(cleanup.read_text())):
                 cleanup_error='Missing or incomplete owned cleanup receipt: '+str(cleanup)
+        if remote_client:
+            try:remote_client.close(consumers_stopped=cleanup_error is None)
+            except BaseException as exc:cleanup_error=repr(exc)
         write(run/'cleanup_summary.json',{'passed':cleanup_error is None,'error':cleanup_error})
         if cache.exists() and cleanup_error is None:
             marker=cache/'OWNER.json'

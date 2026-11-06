@@ -1,0 +1,16 @@
+{
+  "teachers": [
+    {
+      "name": "teacher_a",
+      "url": "http://teacher-a.internal:8395",
+      "api_key_file": "/run/secrets/dflash2_teacher.key",
+      "shared_root": "/shared/dflash2/teacher_a_job01"
+    },
+    {
+      "name": "teacher_b",
+      "url": "http://teacher-b.internal:8395",
+      "api_key_file": "/run/secrets/dflash2_teacher.key",
+      "shared_root": "/shared/dflash2/teacher_b_job01"
+    }
+  ]
+}
