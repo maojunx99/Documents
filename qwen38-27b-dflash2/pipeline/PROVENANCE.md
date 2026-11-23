@@ -74,3 +74,11 @@ Online teachers now run native vLLM directly. Added `shared_file` to the GPU/NPU
 This reuses native extraction/copying and changes only writer publication to fsync+atomic rename and reader polling;
 no cross-host flock is used. Training model math, losses, and optimizer implementations are unchanged.
 The older `file` backend and source Mooncake backend remain available; no NPU Mooncake success is implied.
+
+## 2026-11-23：可配置的 selector 概率分布损失
+
+GPU/NPU 的正式 DFlash2 源码新增 `selector_loss_type=hard_ce|full_teacher_tv`，默认保留 hard CE；原生 CLI、GPU 编排入口、NPU 一键/分阶段配置均传递并记录该值。该修改把先前实验归档中的完整教师 TV 目标接入通用入口，不修改历史实验快照或其结果。
+
+TV 使用完整词表 T=1 教师归一化后的候选概率，以及 K 内归一化的草稿概率；只 detach 教师，保留所有原有草稿梯度、候选注入、mask 和损失归约。默认 fixed-exp 衰减不变；D-PACE 选择时仍用 hard-target CE 置信度计算位置权重。教师全词表 log-normalizer 按256行分块转 FP32，候选 mass 指标复用该结果，避免额外整份 FP32 词表副本。该改动不更换推理采样器或教师 HTTP 接口。
+
+新增 CPU 检查以显式完整词表 TV 为参考，覆盖 FP32/BF16 的损失与草稿特征梯度、教师无梯度、mask/padding、候选注入、旧 hard CE 损失/梯度精确回归、分块归一化、原生 schema/CLI/训练验证 kwargs，以及 GPU/NPU 配置传递。此轮没有运行新的 GPU/NPU 服务或训练；CPU 检查不代表硬件吞吐、分布式训练或真实推理接受长度已验证。新增检查可在带 CPU Torch、pydantic-settings、PyYAML 的环境中，从 `pipeline/` 执行 `python -m unittest discover -s tests -p test_selector_loss.py -v`。

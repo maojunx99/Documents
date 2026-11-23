@@ -71,6 +71,17 @@ class NpuSteps(unittest.TestCase):
         self.call('03_configure.sh', '--output', str(self.config))
         self.assertEqual(self.config.read_bytes(), before)
 
+    def test_selector_objective_reaches_one_command_and_train_stage(self):
+        for objective in ['hard_ce', 'full_teacher_tv']:
+            env={'SELECTOR_LOSS_TYPE':objective,'RUN_DIR':(self.root/('new_'+objective)).as_posix()}
+            for script in ['04_run.sh', 'stages/04_train.sh']:
+                result=self.call(script,'--config',str(self.config),'--dry-run',extra_env=env)
+                payload=json.loads(result.stdout)
+                self.assertEqual(payload['config']['selector_loss_type'],objective)
+                trainer=payload['commands']['trainer']
+                self.assertEqual(trainer[trainer.index('--selector-loss-type')+1],objective)
+        self.assertEqual(self.plan()['config']['selector_loss_type'],'hard_ce')
+
     def test_remote_only_configuration_reaches_one_command_and_train_stage(self):
         peers=self.root/'remote_teachers.json'
         peers.write_text(json.dumps({'teachers':[{'name':'teacher_a','url':'http://teacher.internal:8395',

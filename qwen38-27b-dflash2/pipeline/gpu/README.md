@@ -64,6 +64,14 @@ anchors是每rank packed批次共享上限。入口加`--max-steps 3`可做有�
 
 输出包括配置、命令/进程身份、教师provenance、trainer.log、验证、checkpoints与cleanup。任何失败均保留现场，不自动重训；清理只处理本次启动且身份匹配的进程。
 
+### 可选：让 selector 匹配教师概率分布
+
+基础入口仍默认使用 hard CE。需要使用此前探索过的总变差距离目标时，在第3步命令增加 `--selector-loss-type full_teacher_tv`；回到默认值使用 `hard_ce`。原生训练 CLI 也使用同名参数；参考脚本 `gpu/reference/train.sh` 可通过 `SELECTOR_LOSS_TYPE=full_teacher_tv` 切换。
+
+该选项只替换 selector 损失：教师按完整词表的 T=1 概率归一化，草稿在原有 top16 候选内归一化，最小化 `1 − Σ min(p_teacher, q_draft)`。教师概率不在 top16 内重新归一化；缺失 argmax 注入、unary CE.1＋TV.9、selector alpha.1 和位置权重保持原配方。教师分支停止梯度，草稿分支仍正常反传，不改变服务端采样方式。
+
+这属于可选实验目标，不能保证真实推理接受长度提升。此新增入口已做 CPU 数值、梯度和配置传递验证，尚未做新增 GPU/NPU 端到端训练验证。
+
 ## 4. 后续训练代码
 
 [continuation/](continuation/)保存文章最终模型对应的补充训练实现，包含固定token预算/梯度累积、配对输入与anchor记录、共享特征缓存、分布匹配目标、FP32 master优化器和数据选择。

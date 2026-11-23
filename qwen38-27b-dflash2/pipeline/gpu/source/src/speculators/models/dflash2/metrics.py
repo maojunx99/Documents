@@ -18,6 +18,10 @@ from speculators.losses import (
     loss_function,
     tv_loss,
 )
+from speculators.models.dflash2.selector_losses import (
+    full_teacher_tv_elements,
+    teacher_log_normalizer,
+)
 from speculators.models.dspark.metrics import compute_metrics as compute_unary_metrics
 from speculators.models.metrics import compute_accepted_length_counts
 
@@ -83,19 +87,43 @@ def compute_selector_loss(
     per_position_loss_weight: str,
     dpace_alpha: float,
     sample_from_anchor: bool = False,
+    selector_loss_type: str = "hard_ce",
+    teacher_candidate_log_probs: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Compute teacher-forced hard CE over the runtime-sized candidate set."""
+    """Compute hard CE or full-teacher TV with the existing mask/reduction."""
+    if selector_loss_type == "hard_ce":
+        selector_targets = target_positions
+        selector_loss_fn = _candidate_cross_entropy
+    elif selector_loss_type == "full_teacher_tv":
+        if teacher_candidate_log_probs is None:
+            raise ValueError(
+                "full_teacher_tv requires full-vocabulary teacher log probs"
+            )
+        if teacher_candidate_log_probs.shape != candidate_logits.shape:
+            raise ValueError("Teacher candidate log probs must match candidate logits")
+        selector_targets = teacher_candidate_log_probs
+        selector_loss_fn = full_teacher_tv_elements
+    else:
+        raise ValueError(f"Unknown selector_loss_type: {selector_loss_type}")
     pos_idx = (
         torch.arange(candidate_logits.shape[1], device=candidate_logits.device)
         % block_size
     ).unsqueeze(0)
     if per_position_loss_weight == "dpace":
-        decay_fn = partial(
-            dpace_loss_decay,
-            loss_mask=loss_mask,
-            block_size=block_size,
-            dpace_alpha=dpace_alpha,
-        )
+        decay_kwargs = {
+            "loss_mask": loss_mask,
+            "block_size": block_size,
+            "dpace_alpha": dpace_alpha,
+        }
+        if selector_loss_type == "full_teacher_tv":
+            decay_fn = partial(
+                _selector_dpace_decay,
+                candidate_logits=candidate_logits,
+                target_positions=target_positions,
+                **decay_kwargs,
+            )
+        else:
+            decay_fn = partial(dpace_loss_decay, **decay_kwargs)
     else:
         decay_fn = partial(
             dflash_loss_decay,
@@ -104,12 +132,35 @@ def compute_selector_loss(
         )
     return loss_function(
         candidate_logits,
-        target_positions,
+        selector_targets,
         loss_mask,
         pos_idx,
-        loss_fn=_candidate_cross_entropy,
+        loss_fn=selector_loss_fn,
         decay_fn=decay_fn,
     )
+
+
+def _selector_dpace_decay(
+    pos_idx: torch.Tensor,
+    *,
+    candidate_logits: torch.Tensor,
+    target_positions: torch.Tensor,
+    loss_mask: torch.Tensor,
+    block_size: int,
+    dpace_alpha: float,
+    **_kwargs,
+) -> torch.Tensor:
+    # D-PACE expects negative log confidence, not a bounded TV distance.
+    # Keep its original hard-target CE confidence and mask for the TV branch.
+    with torch.no_grad():
+        reference_ce = _candidate_cross_entropy(candidate_logits, target_positions)
+        return dpace_loss_decay(
+            pos_idx,
+            loss_mask=loss_mask,
+            block_size=block_size,
+            dpace_alpha=dpace_alpha,
+            elementwise_loss=reference_ce * loss_mask.to(reference_ce.dtype),
+        )
 
 
 def compute_metrics(
@@ -128,6 +179,7 @@ def compute_metrics(
     tv_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] = tv_loss,
     gamma: float = 4.0,
     selector_loss_alpha: float = 1.0,
+    selector_loss_type: str = "hard_ce",
     per_position_loss_weight: str = "fixed-exp-decay",
     dpace_alpha: float = 0.5,
 ) -> tuple[torch.Tensor, dict[str, Any]]:
@@ -146,6 +198,12 @@ def compute_metrics(
         dpace_alpha=dpace_alpha,
         sample_from_anchor=sample_from_anchor,
     )
+    with torch.no_grad():
+        target_log_normalizer = teacher_log_normalizer(targets)
+        candidate_target_logits = targets.gather(-1, training_candidate_ids).float()
+        teacher_candidate_log_probs = (
+            candidate_target_logits - target_log_normalizer.unsqueeze(-1)
+        )
     selector_loss = compute_selector_loss(
         candidate_logits,
         target_positions,
@@ -155,6 +213,8 @@ def compute_metrics(
         per_position_loss_weight=per_position_loss_weight,
         dpace_alpha=dpace_alpha,
         sample_from_anchor=sample_from_anchor,
+        selector_loss_type=selector_loss_type,
+        teacher_candidate_log_probs=teacher_candidate_log_probs,
     )
     loss = unary_loss + selector_loss_alpha * selector_loss
 
@@ -177,8 +237,6 @@ def compute_metrics(
         ).sum()
         metrics[f"unary_candidate_recall_at_{top_k}_total"] = valid_total
 
-        target_log_normalizer = torch.logsumexp(targets.float(), dim=-1)
-        candidate_target_logits = targets.gather(-1, training_candidate_ids).float()
         candidate_mass = torch.exp(
             torch.logsumexp(candidate_target_logits, dim=-1) - target_log_normalizer
         )

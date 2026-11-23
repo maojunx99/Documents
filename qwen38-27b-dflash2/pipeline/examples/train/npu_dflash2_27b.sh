@@ -59,6 +59,7 @@ LR="${LR:-0.0006}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0}"
 WARMUP_RATIO="${WARMUP_RATIO:-0.04}"
 SELECTOR_ALPHA="${SELECTOR_ALPHA:-0.1}"
+SELECTOR_LOSS_TYPE="${SELECTOR_LOSS_TYPE:-hard_ce}" # Optional: full_teacher_tv
 CE_WEIGHT="${CE_WEIGHT:-0.1}"
 TV_WEIGHT="${TV_WEIGHT:-0.9}"
 GAMMA="${GAMMA:-4}"
@@ -106,7 +107,8 @@ exec "$PYTHON" "$ROOT/npu/run_pipeline.py" \
   --generation-max-num-seqs "$GENERATION_MAX_NUM_SEQS" --generation-memory-utilization "$GENERATION_MEMORY" \
   --sample-max-length "$SAMPLE_MAX_LENGTH" --packed-tokens "$PACKED_TOKENS" --max-anchors "$MAX_ANCHORS" \
   --epochs "$EPOCHS" --train-ratio "$TRAIN_RATIO" --lr "$LR" --weight-decay "$WEIGHT_DECAY" \
-  --warmup-ratio "$WARMUP_RATIO" --selector-alpha "$SELECTOR_ALPHA" --ce-weight "$CE_WEIGHT" --tv-weight "$TV_WEIGHT" \
+  --warmup-ratio "$WARMUP_RATIO" --selector-alpha "$SELECTOR_ALPHA" --selector-loss-type "$SELECTOR_LOSS_TYPE" \
+  --ce-weight "$CE_WEIGHT" --tv-weight "$TV_WEIGHT" \
   --gamma "$GAMMA" --noise-std "$NOISE_STD" --seed "$SEED" --workers "$WORKERS" --prefetch-factor "$PREFETCH_FACTOR" \
   --prepare-workers "$PREPARE_WORKERS" --teacher-max-num-seqs "$TEACHER_MAX_NUM_SEQS" --teacher-memory-utilization "$TEACHER_MEMORY" \
   --hidden-states-backend "$HIDDEN_STATES_BACKEND" --stage-timeout "$STAGE_TIMEOUT" "${extra[@]}" "$@"

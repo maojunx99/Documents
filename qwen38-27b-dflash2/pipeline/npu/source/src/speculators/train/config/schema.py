@@ -482,7 +482,12 @@ class DFlash2Args(_Group):
     selector_loss_alpha: float = Field(
         default=1.0,
         ge=0.0,
-        description="DFlash2: weight of the candidate-selector K-way CE term.",
+        description="DFlash2: weight of the candidate-selector loss term.",
+    )
+    selector_loss_type: Literal["hard_ce", "full_teacher_tv"] = Field(
+        default="hard_ce",
+        description="DFlash2: hard candidate CE or TV against full-vocabulary "
+        "teacher T=1 probabilities (no top-k renormalization).",
     )
 
 

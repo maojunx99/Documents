@@ -29,6 +29,7 @@ CUDA_VISIBLE_DEVICES=4,5,6,7 setsid nohup "$VENV_PY" -m torch.distributed.run \
   --dflash-decay-gamma "$GAMMA" \
   --per-position-loss-weight fixed-exp-decay \
   --selector-loss-alpha "$SELECTOR_ALPHA" \
+  --selector-loss-type "$SELECTOR_LOSS_TYPE" \
   --optimizer adamw --lr "$LR" --weight-decay 0 \
   --scheduler-type cosine --scheduler-warmup-ratio 0.04 \
   --epochs "$EPOCHS" --total-seq-len "$SEQ_LEN" \

@@ -72,6 +72,7 @@ def parser():
     p.add_argument('--weight-decay', type=float, default=0.)
     p.add_argument('--warmup-ratio', type=float, default=.04)
     p.add_argument('--selector-alpha', type=float, default=.1)
+    p.add_argument('--selector-loss-type', choices=['hard_ce', 'full_teacher_tv'], default='hard_ce')
     p.add_argument('--ce-weight', type=float, default=.1)
     p.add_argument('--tv-weight', type=float, default=.9)
     p.add_argument('--gamma', type=float, default=4.)
@@ -226,7 +227,8 @@ def command_plan(a, resolved):
       '--vllm-endpoint',f'http://127.0.0.1:{a.router_port}/v1','--save-path',str(r/'checkpoints'),'--log-dir',str(r/'logs'),
       '--run-name',r.name,'--block-size','8','--max-anchors',str(a.max_anchors),'--target-layer-ids',*map(str,a.target_layer_ids),
       '--mask-token-id',str(a.mask_token_id),'--conv-kernel-size','2','--conv-group-size','16','--selector-rank','256','--selector-top-k','16',
-      '--selector-loss-alpha',str(a.selector_alpha),'--loss-fn',json.dumps({'ce':a.ce_weight,'tv':a.tv_weight}),'--loss-implementation','fused',
+      '--selector-loss-alpha',str(a.selector_alpha),'--selector-loss-type',a.selector_loss_type,
+      '--loss-fn',json.dumps({'ce':a.ce_weight,'tv':a.tv_weight}),'--loss-implementation','fused',
       '--dflash-decay-gamma',str(a.gamma),'--per-position-loss-weight','fixed-exp-decay','--optimizer','adamw','--lr',str(a.lr),
       '--weight-decay',str(a.weight_decay),'--scheduler-type','cosine','--scheduler-warmup-ratio',str(a.warmup_ratio),'--epochs',str(a.epochs),
       '--total-seq-len',str(a.packed_tokens),'--train-data-ratio',str(a.train_ratio),'--seed',str(a.seed),

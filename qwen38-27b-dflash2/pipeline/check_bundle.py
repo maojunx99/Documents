@@ -1,4 +1,4 @@
-"""CPU-only publication checks. No torch import, network, or accelerator work."""
+"""CPU-only publication checks; optional torch numerical tests, no accelerator work."""
 from pathlib import Path
 import ast
 import hashlib

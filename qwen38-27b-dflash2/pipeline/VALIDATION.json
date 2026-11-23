@@ -467,5 +467,32 @@
       "GPU shared_file writer matches the NPU adapter source and has CPU plan coverage; this iteration did not run new GPU training.",
       "Native BF16 checkpoints lack RNG state and are not lossless FP32 resume."
     ]
+  },
+  "selector_loss_20261123": {
+    "date": "2026-11-23",
+    "scope": "CPU numerical, gradient, configuration and publication checks only",
+    "passed": true,
+    "platform": "Windows",
+    "python": "3.11.9",
+    "torch": "2.5.1+cpu",
+    "test_command": "python -m unittest discover -s tests -v (cwd: pipeline)",
+    "tests_run": 58,
+    "tests_passed": 56,
+    "tests_skipped": 2,
+    "skip_reason": "Two existing Linux /proc process identity tests cannot run on Windows",
+    "selector_numerical_tests_passed": 8,
+    "checks": [
+      "GPU and NPU actual loss modules: FP32/BF16 TV and draft feature gradients match explicit full-vocabulary TV",
+      "Teacher branch detached; padded anchors masked; hard CE loss and gradient exactly preserve prior formula",
+      "Teacher is normalized over full vocabulary, not within top-k; chunked FP32 logsumexp matches dense reference",
+      "D-PACE TV weighting retains hard-target CE confidence",
+      "Combined unary/selector loss and candidate mass diagnostics checked",
+      "Native schema/CLI/flatten/train-val kwargs and public GPU/NPU command/config forwarding checked",
+      "Native schema test stubs external I/O registries; loss math uses actual modules"
+    ],
+    "accelerator_jobs_started": 0,
+    "new_gpu_training_verified": false,
+    "new_npu_training_verified": false,
+    "quality_or_throughput_evaluation": false
   }
 }

@@ -1,5 +1,7 @@
 """CPU contract tests: model switches, topology guards, sampling, and conversation coverage."""
 import copy
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
@@ -75,6 +77,25 @@ class PipelineContract(unittest.TestCase):
             target=copy.deepcopy(self.target);target[key]+=1
             (self.model/'config.json').write_text(json.dumps(target))
             with self.assertRaisesRegex(ValueError,key):validate(self.args())
+
+    def test_selector_objective_reaches_both_native_launchers(self):
+        for objective in ['hard_ce', 'full_teacher_tv']:
+            a=self.args('--selector-loss-type',objective)
+            native=command_plan(a,validate(a))['trainer']
+            self.assertEqual(native[native.index('--selector-loss-type')+1],objective)
+            self.assertEqual(native[native.index('--selector-loss-alpha')+1],'0.1')
+            run=self.root/('gpu_'+objective)
+            result=subprocess.run([sys.executable,str(ROOT/'gpu/run_pipeline.py'),
+                '--model',str(self.model),'--data-dir',str(self.root/'data'),
+                '--run',str(run),'--selector-loss-type',objective,'--dry-run'],
+                capture_output=True,text=True,check=True)
+            native=json.loads(result.stdout)['train']
+            self.assertEqual(native[native.index('--selector-loss-type')+1],objective)
+            self.assertFalse(run.exists())
+        self.assertEqual(self.args().selector_loss_type,'hard_ce')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parser().parse_args(['--model',str(self.model),'--run',str(self.root/'bad'),
+                                '--selector-loss-type','conditional_tv'])
 
     def test_official_warm_start_preserves_decoder_and_hidden_layer_convention(self):
         ck=self.root/'official';ck.mkdir()

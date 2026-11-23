@@ -17,6 +17,7 @@ export EPOCHS=5
 export LR=0.0006
 export LOSS_FN='{"ce": 0.1, "tv": 0.9}'
 export SELECTOR_ALPHA=0.1
+export SELECTOR_LOSS_TYPE="${SELECTOR_LOSS_TYPE:-hard_ce}"
 export GAMMA=4.0
 export SEQ_LEN=8192
 export MAX_ANCHORS=1024

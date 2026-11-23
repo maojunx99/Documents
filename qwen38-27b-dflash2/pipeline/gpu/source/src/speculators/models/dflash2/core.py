@@ -112,6 +112,7 @@ class DFlash2DraftModel(DFlashDraftModel):
             ),
             "dpace_alpha": kwargs.get("dpace_alpha", 0.5),
             "selector_loss_alpha": kwargs.get("selector_loss_alpha", 1.0),
+            "selector_loss_type": kwargs.get("selector_loss_type", "hard_ce"),
             "selector_stop_gradient": kwargs.get("selector_stop_gradient", False),
         }
         return dict(shared), dict(shared)
@@ -143,6 +144,7 @@ class DFlash2DraftModel(DFlashDraftModel):
         gamma: float = 4.0,
         max_anchors: int = 512,
         selector_loss_alpha: float = 1.0,
+        selector_loss_type: str = "hard_ce",
         selector_stop_gradient: bool = False,
         per_position_loss_weight: str = "fixed-exp-decay",
         dpace_alpha: float = 0.5,
@@ -200,6 +202,7 @@ class DFlash2DraftModel(DFlashDraftModel):
             tv_loss_fn=tv_loss_fn,
             gamma=gamma,
             selector_loss_alpha=selector_loss_alpha,
+            selector_loss_type=selector_loss_type,
             per_position_loss_weight=per_position_loss_weight,
             dpace_alpha=dpace_alpha,
         )

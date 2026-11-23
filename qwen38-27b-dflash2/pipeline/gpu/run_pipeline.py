@@ -28,6 +28,8 @@ def main():
     p.add_argument('--router-port', type=int, default=8250)
     p.add_argument('--teacher-base-port', type=int, default=8260)
     p.add_argument('--max-steps', type=int, help='Bounded smoke only; retains the original five-epoch schedule')
+    p.add_argument('--selector-loss-type', choices=['hard_ce', 'full_teacher_tv'], default='hard_ce',
+                   help='Selector objective; unary CE.1+TV.9 and alpha.1 stay unchanged')
     p.add_argument('--dry-run', action='store_true')
     a = p.parse_args()
     source = BASE / 'source'
@@ -54,6 +56,7 @@ def main():
              '--draft-config', str(BASE / 'draft_config.json'), '--mask-token-id', '248070',
              '--target-layer-ids', '6', '20', '34', '48', '62', '--loss-fn', '{"ce":0.1,"tv":0.9}',
              '--dflash-decay-gamma', '4', '--per-position-loss-weight', 'fixed-exp-decay', '--selector-loss-alpha', '.1',
+             '--selector-loss-type', a.selector_loss_type,
              '--optimizer', 'adamw', '--lr', '.0006', '--weight-decay', '0', '--scheduler-type', 'cosine',
              '--scheduler-warmup-ratio', '.04', '--epochs', '5', '--total-seq-len', '8192', '--train-data-ratio', '.99',
              '--noise-std', '.05', '--seed', '42', '--hidden-states-dtype', 'bfloat16', '--hidden-states-backend', transfer_backend,
@@ -79,6 +82,7 @@ def main():
     env = source_environment(source)
     write(a.run / 'PIPELINE_CONFIG.json', {'model': str(a.model), 'raw_inputs': [str(x) for x in shards],
           'sample_cap': 4096, 'packed_per_rank': 8192, 'anchors': 1024, 'epochs': 5,
+          'selector_loss_type': a.selector_loss_type, 'selector_loss_alpha': .1,
           'teacher_devices': teachers, 'training_devices': trainers, 'smoke_max_steps': a.max_steps,
           'remote_teachers': peers,
           'remote_config_sha256': hashlib.sha256(a.remote_teachers.read_bytes()).hexdigest() if a.remote_teachers else None,

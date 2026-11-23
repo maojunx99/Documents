@@ -30,10 +30,19 @@
 | `TEMPERATURE`、`TOP_P`、`TOP_K`、`PRESENCE_PENALTY`、`REASONING_EFFORT` | 回答重采样参数 |
 | `SAMPLE_MAX_LENGTH`、`PACKED_TOKENS`、`MAX_ANCHORS` | 单条上限、packed预算、每rank批次共享anchor预算 |
 | `EPOCHS`、`LR`、`WARMUP_RATIO` | 学习率计划；默认5轮、6e-4、4% |
+| `SELECTOR_LOSS_TYPE`、`SELECTOR_ALPHA` | selector 目标及权重；默认 `hard_ce`、0.1，可选 `full_teacher_tv` |
 | `REGENERATED_DIR` | 可选复用同一目标身份核验通过的已有回答 |
 | `RUN_DIR` | 新目录；留空自动创建，拒绝覆盖旧任务 |
 
 默认FSDP4用0～3卡、教师TP2用4/5卡，单条/packed4096、512 anchors、CE.1+TV.9、selector alpha.1。只执行epoch0但保留五轮调度时设置`EPOCHS=5`、`STOP_AFTER_EPOCH=0`。
+
+### 可选：匹配教师概率分布
+
+在同一份 `config.local.npu.sh` 中设置 `SELECTOR_LOSS_TYPE=full_teacher_tv`、`SELECTOR_ALPHA=0.1`，一键入口和分阶段训练都会传递这个选择。Python/原生训练入口使用 `--selector-loss-type full_teacher_tv`；从零训练和 `FROM_PRETRAINED` 微调均适用。默认仍为 `hard_ce`。
+
+该目标最小化 `1 − Σ min(p_teacher, q_draft)`：教师采用完整词表的 T=1 概率，草稿概率仅在原有 top16 内归一化，教师不在 top16 内重新归一化。只替换 selector 损失，保留原有候选/缺失 argmax 注入、unary CE.1＋TV.9、mask、位置衰减及所有草稿参数的梯度。全词表归一化分块计算，避免整份 logits 同时转成 FP32。原生 CLI 若使用 D-PACE，仍由 hard-target CE 置信度计算位置权重。
+
+这是可选实验目标，不能保证真实推理接受长度提升。新增分支已完成 CPU 数值、梯度、原生配置和命令传递验证，尚未做新增 NPU/GPU 端到端训练验证。
 
 ## 多机器教师：仍只改这份配置
 
